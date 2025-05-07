@@ -37,6 +37,31 @@ workspace = "~/scripts/workspace_changed.sh"
 fullscreen = "~/scripts/fullscreen_toggle.sh"
 ```
 
+## Using Event Data Arguments
+
+Events can pass multiple pieces of data which you can access individually:
+
+```toml
+# Using positional arguments from event data with {n} placeholders
+# For movewindowv2 which sends: WINDOWADDRESS,WORKSPACEID,WORKSPACENAME
+movewindowv2 = "notify-send 'Window Moved' 'Window {0} moved to workspace {2} (ID: {1})'"
+
+# Accessing the entire event data 
+windowtitle = "notify-send 'Window Title Changed' \"$HYDE_EVENT_DATA\""
+```
+
+## Runtime Options
+
+The application supports the following command line options:
+
+```bash
+# Run with minimal logging (default)
+./hyde-ipc
+
+# Run with verbose logging for debugging
+./hyde-ipc --verbose
+```
+
 ## Available Events
 
 The application listens for all Hyprland events. Here are some examples:
@@ -82,6 +107,17 @@ WantedBy=graphical-session.target
 ```bash
 systemctl --user enable hyde-ipc.service
 systemctl --user start hyde-ipc.service
+```
+
+4. For verbose logging with the service:
+```bash
+systemctl --user edit hyde-ipc.service
+```
+
+Then add `--verbose` to the ExecStart line:
+```ini
+[Service]
+ExecStart=/path/to/hyde-ipc --verbose
 ```
 
 ## License

@@ -2,215 +2,247 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"log"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/adrg/xdg"
 )
 
-// Configuration structure
 type Config struct {
 	HyprlandIPC map[string]string `toml:"hyprland-ipc"`
+	Settings    struct {
+		MaxConcurrent int           `toml:"max_concurrent"`
+		Timeout       time.Duration `toml:"timeout"`
+		DebounceTime  time.Duration `toml:"debounce_time"`
+	} `toml:"settings"`
 }
 
+var (
+	config     *Config
+	configLock sync.RWMutex
+	verbose    bool
+	executor   *CommandExecutor
+
+	lastEvents     = make(map[string]time.Time)
+	lastEventsLock sync.Mutex
+)
+
 func main() {
-	// Setup logging
+
+	flag.BoolVar(&verbose, "verbose", false, "Enable verbose logging")
+	memLimit := flag.Int("memlimit", 8, "Memory limit in MB")
+	flag.Parse()
+
+	setMemoryLimit(*memLimit)
+
 	log.SetPrefix("hyde-ipc: ")
-	log.SetFlags(log.Ldate | log.Ltime)
+	if verbose {
+		log.SetFlags(log.Ldate | log.Ltime)
+	} else {
+		log.SetFlags(0)
+	}
 
-	log.Println("Starting Hyde IPC for Hyprland")
-
-	// Create default config if it doesn't exist
 	configPath := filepath.Join(xdg.ConfigHome, "hyde", "config.toml")
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		log.Println("No configuration found, creating default config at", configPath)
+		logInfo("Creating default config at %s", configPath)
 		if err := createDefaultConfig(); err != nil {
-			log.Fatalf("Failed to create default config: %v", err)
+			log.Fatal("Config error: ", err)
 		}
 	}
 
-	// Load configuration
-	config, err := loadConfig()
+	var err error
+	config, err = loadConfig()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		log.Fatal("Config error: ", err)
 	}
 
-	// Get Hyprland socket path
-	socketPath, err := getHyprlandSocketPath()
-	if err != nil {
-		log.Fatalf("Failed to get Hyprland socket path: %v", err)
+	maxConcurrent := config.Settings.MaxConcurrent
+	if maxConcurrent <= 0 {
+		maxConcurrent = 2
 	}
+	executor = NewCommandExecutor(maxConcurrent)
 
-	// Connect to socket2 for events
+	socketPath := getHyprlandSocketPath()
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
-		log.Fatalf("Failed to connect to Hyprland socket: %v", err)
+		log.Fatal("Socket error: ", err)
 	}
 	defer conn.Close()
 
-	log.Printf("Connected to Hyprland socket at %s", socketPath)
-	log.Println("Listening for events...")
+	logInfo("Connected to Hyprland socket, listening for events...")
 
-	// Read events from socket
 	scanner := bufio.NewScanner(conn)
+
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 64*1024)
+
 	for scanner.Scan() {
-		line := scanner.Text()
-		handleEvent(line, config.HyprlandIPC)
+		handleEvent(scanner.Text())
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Fatalf("Error reading from socket: %v", err)
+		log.Fatal("Socket error: ", err)
 	}
 }
 
-// loadConfig reads the configuration file
+func setMemoryLimit(limitMB int) {
+
+}
+
+func logInfo(format string, v ...interface{}) {
+	if verbose {
+		log.Printf(format, v...)
+	}
+}
+
 func loadConfig() (*Config, error) {
-	// Use xdg library to get the proper config path
 	configPath := filepath.Join(xdg.ConfigHome, "hyde", "config.toml")
 
-	// Check if config exists
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("config file not found at %s", configPath)
+	var cfg Config
+	if _, err := toml.DecodeFile(configPath, &cfg); err != nil {
+		return nil, err
 	}
 
-	var config Config
-	if _, err := toml.DecodeFile(configPath, &config); err != nil {
-		return nil, fmt.Errorf("failed to decode config file: %w", err)
+	if cfg.Settings.Timeout <= 0 {
+		cfg.Settings.Timeout = 5 * time.Second
+	}
+	if cfg.Settings.DebounceTime <= 0 {
+		cfg.Settings.DebounceTime = 100 * time.Millisecond
 	}
 
-	return &config, nil
+	return &cfg, nil
 }
 
-// getHyprlandSocketPath returns the path to the Hyprland socket2 for events
-func getHyprlandSocketPath() (string, error) {
+func getHyprlandSocketPath() string {
 	his := os.Getenv("HYPRLAND_INSTANCE_SIGNATURE")
 	if his == "" {
-		return "", fmt.Errorf("HYPRLAND_INSTANCE_SIGNATURE environment variable not set")
+		log.Fatal("HYPRLAND_INSTANCE_SIGNATURE not set")
 	}
 
 	runtimeDir := os.Getenv("XDG_RUNTIME_DIR")
 	if runtimeDir == "" {
-		return "", fmt.Errorf("XDG_RUNTIME_DIR environment variable not set")
+		log.Fatal("XDG_RUNTIME_DIR not set")
 	}
 
-	return filepath.Join(runtimeDir, "hypr", his, ".socket2.sock"), nil
+	return filepath.Join(runtimeDir, "hypr", his, ".socket2.sock")
 }
 
-// handleEvent processes Hyprland events and executes configured scripts
-func handleEvent(eventLine string, config map[string]string) {
+func handleEvent(eventLine string) {
 	parts := strings.SplitN(eventLine, ">>", 2)
 	if len(parts) != 2 {
-		log.Printf("Ignoring malformed event: %s", eventLine)
 		return
 	}
 
 	eventName := parts[0]
 	eventData := parts[1]
 
-	log.Printf("Received event: %s with data: %s", eventName, eventData)
+	if shouldDebounce(eventName) {
+		return
+	}
 
-	// Check if we have a script configured for this event
-	script, exists := config[eventName]
+	configLock.RLock()
+	script, exists := config.HyprlandIPC[eventName]
+	configLock.RUnlock()
+
 	if !exists || script == "" {
-		return // No script configured for this event
+		return
 	}
 
-	// Replace argument placeholders like {0}, {1}, etc. with actual values
-	dataArgs := strings.Split(eventData, ",")
-	for i, arg := range dataArgs {
-		placeholder := fmt.Sprintf("{%d}", i)
-		script = strings.ReplaceAll(script, placeholder, arg)
+	if strings.Contains(script, "{") {
+		dataArgs := strings.Split(eventData, ",")
+		for i, arg := range dataArgs {
+			placeholder := fmt.Sprintf("{%d}", i)
+			script = strings.Replace(script, placeholder, arg, -1)
+		}
 	}
-
-	// Execute the script
-	cmd := exec.Command("sh", "-c", script)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("HYDE_EVENT_DATA=%s", eventData))
 
 	go func() {
-		output, err := cmd.CombinedOutput()
+		output, err := executor.ExecuteWithTimeout(script, eventData, config.Settings.Timeout)
 		if err != nil {
-			log.Printf("Error executing script for event %s: %v", eventName, err)
-			if len(output) > 0 {
-				log.Printf("Script output: %s", output)
-			}
-		} else if len(output) > 0 {
-			log.Printf("Script for event %s output: %s", eventName, output)
+			logInfo("Script error [%s]: %v", eventName, err)
+			return
+		}
+
+		if verbose && len(output) > 0 {
+			logInfo("Script output [%s]: %s", eventName, limitString(string(output), 100))
 		}
 	}()
 }
 
-// createDefaultConfig generates a default configuration file if none exists
+func shouldDebounce(eventName string) bool {
+
+	if eventName == "urgent" || eventName == "closewindow" {
+		return false
+	}
+
+	lastEventsLock.Lock()
+	defer lastEventsLock.Unlock()
+
+	now := time.Now()
+	lastTime, exists := lastEvents[eventName]
+
+	if exists && now.Sub(lastTime) < config.Settings.DebounceTime {
+		return true
+	}
+
+	lastEvents[eventName] = now
+
+	if now.Nanosecond()%100 == 0 {
+		for k, v := range lastEvents {
+			if now.Sub(v) > 10*time.Second {
+				delete(lastEvents, k)
+			}
+		}
+	}
+
+	return false
+}
+
+func limitString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
+
 func createDefaultConfig() error {
 	configDir := filepath.Join(xdg.ConfigHome, "hyde")
 
-	// Create directory if it doesn't exist
 	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
+		return err
 	}
 
 	configPath := filepath.Join(configDir, "config.toml")
 
-	// Don't overwrite existing config
 	if _, err := os.Stat(configPath); err == nil {
-		return nil // File already exists
+		return nil
 	}
 
 	defaultConfig := `# Hyde IPC Configuration for Hyprland
 
+[settings]
+# Maximum number of concurrent script executions
+max_concurrent = 2
+# Timeout for script execution in seconds
+timeout = 5
+# Debounce time for frequent events in milliseconds
+debounce_time = 100
+
 [hyprland-ipc]
-# Event handlers
-# Format: event_name = "script_to_execute"
-
-# Window events
+# Most common events are configured here
 windowtitle = "notify-send \"Window Title Changed\" \"$HYDE_EVENT_DATA\""
-activewindow = ""
-activewindowv2 = ""
-openwindow = ""
-closewindow = ""
-
-# Workspace events
 workspace = ""
-workspacev2 = ""
-createworkspace = ""
-destroyworkspace = ""
-moveworkspace = ""
-
-# Monitor events
-focusedmon = ""
-monitoradded = ""
-monitorremoved = ""
-
-# Special events
 fullscreen = ""
 screencast = ""
-activespecial = ""
-
-# Layout and input events
-activelayout = ""
-submap = ""
-
-# Layer events
-openlayer = ""
-closelayer = ""
-
-# Floating mode events
-changefloatingmode = ""
-
-# Group events
-togglegroup = ""
-moveintogroup = ""
-moveoutofgroup = ""
-
-# Other events
-urgent = ""
-configreloaded = ""
+activewindow = ""
 `
-
 	return os.WriteFile(configPath, []byte(defaultConfig), 0644)
 }
