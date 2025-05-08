@@ -55,28 +55,6 @@ You can also use placeholders in your scripts:
 - `{0}`: Whole event data string
 - `{1}`, `{2}`, etc.: Individual comma-separated values from the event data
 
-## Project Structure
-
-```
-hyde-ipc/
-├── cmd/
-│   └── hyde-ipc/
-│       └── main.go         # Application entry point
-├── internal/
-│   ├── config/
-│   │   ├── config.go       # Configuration handling
-│   │   └── watcher.go      # Config file watching
-│   ├── executor/
-│   │   └── executor.go     # Script execution logic
-│   ├── events/
-│   │   └── dispatcher.go   # Event dispatching
-│   └── utils/
-│       └── utils.go        # Shared utility functions
-├── go.mod
-├── go.sum
-├── Makefile
-└── hyde-ipc.service        # Systemd service file
-```
 
 ## Usage
 
@@ -93,7 +71,3 @@ hyde-ipc --timeout=30
 # Disable configuration hot-reloading
 hyde-ipc --nowatch
 ```
-
-## License
-
-MIT License
