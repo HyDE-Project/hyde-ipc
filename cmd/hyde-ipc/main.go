@@ -21,7 +21,6 @@ import (
 	"github.com/khing/hyde-ipc/internal/utils"
 )
 
-// Global variables - keeping to minimum needed
 var (
 	cfg                *config.Config
 	configLock         sync.RWMutex
@@ -33,23 +32,19 @@ var (
 )
 
 func main() {
-	// Parse command line flags
+
 	verbose := flag.Bool("verbose", false, "Enable verbose logging")
 	memLimit := flag.Int("memlimit", 8, "Memory limit in MB")
 	noWatch := flag.Bool("nowatch", false, "Disable config file watching")
 	cmdTimeout := flag.Int("timeout", 0, "Override script execution timeout in seconds (0 = use config value)")
 	flag.Parse()
 
-	// Setup logging
 	utils.SetupLogging(*verbose)
 
-	// Store command line timeout
 	commandLineTimeout = *cmdTimeout
 
-	// Configure GC for lower memory usage
 	optimizeMemoryUsage(*memLimit)
 
-	// Check and create default config if needed
 	configPath := filepath.Join(xdg.ConfigHome, "hyde", "config.toml")
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		utils.LogInfo("Creating default config at %s", configPath)
@@ -58,17 +53,14 @@ func main() {
 		}
 	}
 
-	// Load config
 	if err := reloadConfig(*verbose); err != nil {
 		log.Fatal("Config error: ", err)
 	}
 
-	// Setup config watcher unless disabled
 	if !*noWatch {
 		setupConfigWatcher(*verbose)
 	}
 
-	// Connect to Hyprland socket
 	socketPath := getHyprlandSocketPath()
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
@@ -78,28 +70,23 @@ func main() {
 
 	utils.LogInfo("Connected to Hyprland socket, listening for events...")
 
-	// Read events from socket - use a limited buffer for memory efficiency
 	scanner := bufio.NewScanner(conn)
-	buf := make([]byte, 0, 16*1024) // Smaller initial buffer
-	scanner.Buffer(buf, 64*1024)    // Max size still needs to be sufficient
+	buf := make([]byte, 0, 16*1024)
+	scanner.Buffer(buf, 64*1024)
 
-	// Process events
 	for scanner.Scan() {
 		handleEvent(scanner.Text())
 	}
 
-	// Check for scanner errors
 	if err := scanner.Err(); err != nil {
 		log.Fatal("Socket error: ", err)
 	}
 }
 
-// optimizeMemoryUsage configures GC and memory limits for minimal footprint
 func optimizeMemoryUsage(memLimitMB int) {
-	// Enable aggressive GC
-	debug.SetGCPercent(20) // Lower percentage triggers GC more frequently
 
-	// Free OS memory more aggressively
+	debug.SetGCPercent(20)
+
 	go func() {
 		for {
 			debug.FreeOSMemory()
@@ -107,21 +94,17 @@ func optimizeMemoryUsage(memLimitMB int) {
 		}
 	}()
 
-	// Set memory limit if needed
 	if memLimitMB > 0 {
 		setMemoryLimit(memLimitMB)
 	}
 }
 
-// setMemoryLimit sets a soft limit on memory usage
 func setMemoryLimit(limitMB int) {
-	// Platform-dependent implementation would go here
-	// Currently a no-op
+
 }
 
-// reloadConfig reloads the configuration
 func reloadConfig(verbose bool) error {
-	// Initialize handler if needed
+
 	if configHandler == nil {
 		var err error
 		configHandler, err = config.NewConfigHandler(verbose)
@@ -130,34 +113,29 @@ func reloadConfig(verbose bool) error {
 		}
 	}
 
-	// Load config using the handler
 	newConfig, err := configHandler.Load()
 	if err != nil {
-		// If we have a previous valid config, keep using it
+
 		lastValid := configHandler.GetLastValidConfig()
 		if lastValid != nil {
 			log.Printf("Warning: config load error: %v", err)
 			log.Printf("Continuing with previous valid configuration")
-			return nil // Not a fatal error if we can use previous config
+			return nil
 		}
 		return fmt.Errorf("failed to load config and no previous valid config available: %w", err)
 	}
 
-	// Update configuration with write lock
 	configLock.Lock()
 	defer configLock.Unlock()
 
-	// Store the new configuration
 	cfg = newConfig
 
-	// Clear event debounce cache on config reload
 	lastEventsLock.Lock()
 	for k := range lastEvents {
 		delete(lastEvents, k)
 	}
 	lastEventsLock.Unlock()
 
-	// Debug config contents
 	utils.LogInfo("Configuration loaded successfully")
 	utils.LogInfo("Settings: max_concurrent=%d, timeout=%d, debounce_time=%d",
 		cfg.HydeIPC.MaxConcurrent,
@@ -174,7 +152,6 @@ func reloadConfig(verbose bool) error {
 	return nil
 }
 
-// setupConfigWatcher initializes the config file watcher
 func setupConfigWatcher(verbose bool) {
 	watcher, err := config.NewConfigWatcher(func() error {
 		return reloadConfig(verbose)
@@ -194,7 +171,6 @@ func setupConfigWatcher(verbose bool) {
 	utils.LogInfo("Config file watcher started")
 }
 
-// getHyprlandSocketPath returns the path to the Hyprland IPC socket
 func getHyprlandSocketPath() string {
 	his := os.Getenv("HYPRLAND_INSTANCE_SIGNATURE")
 	if his == "" {
@@ -209,7 +185,6 @@ func getHyprlandSocketPath() string {
 	return filepath.Join(runtimeDir, "hypr", his, ".socket2.sock")
 }
 
-// handleEvent processes Hyprland events directly without queuing
 func handleEvent(eventLine string) {
 	parts := strings.SplitN(eventLine, ">>", 2)
 	if len(parts) != 2 {
@@ -231,47 +206,39 @@ func handleEvent(eventLine string) {
 		return
 	}
 
-	// Process placeholders in the script
 	if strings.Contains(script, "{") {
-		// {0} always represents ALL data
+
 		if strings.Contains(script, "{0}") {
 			script = strings.Replace(script, "{0}", eventData, -1)
 		}
 
-		// Handle individual positional arguments starting at {1}
 		dataArgs := strings.Split(eventData, ",")
 		for i, arg := range dataArgs {
-			// Use {1} for first item, {2} for second, etc.
+
 			placeholder := fmt.Sprintf("{%d}", i+1)
 			script = strings.Replace(script, placeholder, arg, -1)
 		}
 	}
 
-	// Extract the command from the script
 	cmdName := script
 	if idx := strings.Index(script, " "); idx > 0 {
 		cmdName = script[:idx]
 	}
 
-	// Check if command exists
 	_, err := exec.LookPath(cmdName)
 	if err != nil {
 		utils.LogInfo("Command not found: %s", cmdName)
 		return
 	}
 
-	// Launch immediately in a separate goroutine
 	go executeScript(eventName, script, eventData)
 }
 
-// executeScript runs a script for an event with timeout handling
 func executeScript(eventName, script, eventData string) {
 	utils.LogInfo("Executing script for event: %s", eventName)
 
-	// Create command with minimal resource usage
 	cmd := exec.Command("sh", "-c", script)
 
-	// Set minimal environment to reduce memory usage
 	cmd.Env = []string{
 		"PATH=" + os.Getenv("PATH"),
 		"HOME=" + os.Getenv("HOME"),
@@ -279,10 +246,9 @@ func executeScript(eventName, script, eventData string) {
 		"WAYLAND_DISPLAY=" + os.Getenv("WAYLAND_DISPLAY"),
 		"XDG_RUNTIME_DIR=" + os.Getenv("XDG_RUNTIME_DIR"),
 		"DBUS_SESSION_BUS_ADDRESS=" + os.Getenv("DBUS_SESSION_BUS_ADDRESS"),
-		"HYDE_EVENT_DATA=" + eventData,
+		"HYPRLAND_EVENT=" + eventData,
 	}
 
-	// Set timeout context - use command line value if specified
 	var timeout time.Duration
 	if commandLineTimeout > 0 {
 		timeout = time.Duration(commandLineTimeout) * time.Second
@@ -293,7 +259,6 @@ func executeScript(eventName, script, eventData string) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	// Run with timeout
 	done := make(chan struct {
 		output []byte
 		err    error
@@ -307,11 +272,10 @@ func executeScript(eventName, script, eventData string) {
 			err    error
 		}{output, err}:
 		case <-ctx.Done():
-			// Context already done, don't send results
+
 		}
 	}()
 
-	// Wait for completion or timeout
 	select {
 	case result := <-done:
 		if result.err != nil && utils.Verbose {
@@ -320,21 +284,19 @@ func executeScript(eventName, script, eventData string) {
 			utils.LogInfo("Script output [%s]: %s", eventName, utils.LimitString(string(result.output), 100))
 		}
 	case <-ctx.Done():
-		// Try to kill the process if it times out
+
 		if cmd.Process != nil {
 			cmd.Process.Kill()
 		}
 		utils.LogInfo("Script timeout [%s] after %d seconds", eventName, timeout/time.Second)
 	}
 
-	// Explicitly free resources
 	done = nil
 	cmd = nil
 }
 
-// shouldDebounce checks if an event should be debounced (ignored)
 func shouldDebounce(eventName string) bool {
-	// Never debounce certain critical events
+
 	if eventName == "urgent" || eventName == "closewindow" {
 		return false
 	}
@@ -345,15 +307,12 @@ func shouldDebounce(eventName string) bool {
 	now := time.Now()
 	lastTime, exists := lastEvents[eventName]
 
-	// If event was seen recently, debounce it
 	if exists && now.Sub(lastTime) < time.Duration(cfg.HydeIPC.DebounceTime)*time.Millisecond {
 		return true
 	}
 
-	// Update last seen time
 	lastEvents[eventName] = now
 
-	// Occasionally clean up old entries
 	if now.Nanosecond()%100 == 0 {
 		for k, v := range lastEvents {
 			if now.Sub(v) > 10*time.Second {
@@ -365,7 +324,6 @@ func shouldDebounce(eventName string) bool {
 	return false
 }
 
-// createDefaultConfig creates a default config file if none exists
 func createDefaultConfig() error {
 	configDir := filepath.Join(xdg.ConfigHome, "hyde")
 

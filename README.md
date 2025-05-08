@@ -42,15 +42,14 @@ debounce_time = 100
 
 [hyprland-ipc]
 # Map Hyprland events to scripts
-windowtitle = "notify-send \"Window Title Changed\" \"$HYDE_EVENT_DATA\""
+windowtitle = "notify-send \"Window Title Changed\" \"$HYPRLAND_EVENT\""
 workspace = "~/.config/hypr/scripts/workspace-change.sh"
 activewindow = "~/.config/hypr/scripts/focus-change.sh"
 ```
 
 ## Event Data
 
-Your scripts receive event data through the `$HYDE_EVENT_DATA` environment variable.
-You can also use placeholders in your scripts:
+Your scripts receive event data through the `HYPRLAND_EVENT` environment variable. You can also use placeholders in your scripts:
 
 - `{0}`: Whole event data string
 - `{1}`, `{2}`, etc.: Individual comma-separated values from the event data

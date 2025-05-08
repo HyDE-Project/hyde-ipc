@@ -9,7 +9,6 @@ import (
 	"github.com/khing/hyde-ipc/internal/utils"
 )
 
-// EventDispatcher handles event dispatching with non-blocking behavior
 type EventDispatcher struct {
 	eventQueue  chan EventJob
 	workerCount int
@@ -19,7 +18,6 @@ type EventDispatcher struct {
 	executor    *executor.CommandExecutor
 }
 
-// EventJob represents a job in the event queue
 type EventJob struct {
 	EventName string
 	EventData string
@@ -27,7 +25,6 @@ type EventJob struct {
 	Timeout   time.Duration
 }
 
-// NewEventDispatcher creates a new event dispatcher
 func NewEventDispatcher(workerCount int, queueSize int, cmdExecutor *executor.CommandExecutor) *EventDispatcher {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -39,12 +36,10 @@ func NewEventDispatcher(workerCount int, queueSize int, cmdExecutor *executor.Co
 		executor:    cmdExecutor,
 	}
 
-	// Start worker goroutines
 	d.startWorkers()
 	return d
 }
 
-// startWorkers launches worker goroutines
 func (d *EventDispatcher) startWorkers() {
 	d.wg.Add(d.workerCount)
 	for i := 0; i < d.workerCount; i++ {
@@ -52,7 +47,6 @@ func (d *EventDispatcher) startWorkers() {
 	}
 }
 
-// worker processes jobs from the event queue
 func (d *EventDispatcher) worker(id int) {
 	defer d.wg.Done()
 
@@ -65,30 +59,26 @@ func (d *EventDispatcher) worker(id int) {
 			return
 		case job, ok := <-d.eventQueue:
 			if !ok {
-				// Channel closed
+
 				return
 			}
 
-			// Process this event completely independently
 			d.processEvent(job, id)
 		}
 	}
 }
 
-// processEvent executes the script for an event
 func (d *EventDispatcher) processEvent(job EventJob, workerID int) {
 	ctx, cancel := context.WithTimeout(d.ctx, job.Timeout)
 	defer cancel()
 
 	utils.LogInfo("Worker %d processing event %s", workerID, job.EventName)
 
-	// Execute with proper timeout handling
 	resultCh := make(chan struct {
 		output []byte
 		err    error
 	}, 1)
 
-	// Use a separate goroutine for actual execution
 	go func() {
 		output, err := d.executor.Execute(job.Script, job.EventData)
 		select {
@@ -101,7 +91,6 @@ func (d *EventDispatcher) processEvent(job EventJob, workerID int) {
 		}
 	}()
 
-	// Wait for result or timeout
 	select {
 	case result := <-resultCh:
 		if result.err != nil {
@@ -114,10 +103,8 @@ func (d *EventDispatcher) processEvent(job EventJob, workerID int) {
 	}
 }
 
-// Dispatch adds an event to the queue for processing
-// This is completely non-blocking and returns immediately
 func (d *EventDispatcher) Dispatch(eventName, eventData, script string, timeout time.Duration) {
-	// Create the job
+
 	job := EventJob{
 		EventName: eventName,
 		EventData: eventData,
@@ -125,22 +112,19 @@ func (d *EventDispatcher) Dispatch(eventName, eventData, script string, timeout 
 		Timeout:   timeout,
 	}
 
-	// Try to queue the job without blocking
 	select {
 	case d.eventQueue <- job:
-		// Job queued successfully
+
 	default:
-		// Queue is full, log and drop the event
+
 		utils.LogInfo("Event queue full, dropping event: %s", eventName)
 	}
 }
 
-// Shutdown gracefully stops the dispatcher
 func (d *EventDispatcher) Shutdown(timeout time.Duration) {
-	// Signal workers to stop
+
 	d.cancelFunc()
 
-	// Wait for workers with timeout
 	done := make(chan struct{})
 	go func() {
 		d.wg.Wait()
