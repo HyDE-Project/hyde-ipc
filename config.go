@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/adrg/xdg"
@@ -53,45 +52,24 @@ func (h *ConfigHandler) Load() (*Config, error) {
 		return nil, fmt.Errorf("config appears to contain merge conflict markers")
 	}
 
-	rawData := make(map[string]interface{})
-	if err := toml.Unmarshal(content, &rawData); err != nil {
-		return nil, fmt.Errorf("failed to parse toml: %w", err)
-	}
-	h.rawData = rawData
-
 	cfg := &Config{
 		HyprlandIPC: make(map[string]string),
 	}
 
-	cfg.Settings.MaxConcurrent = 2
-	cfg.Settings.Timeout = 5 * time.Second
-	cfg.Settings.DebounceTime = 100 * time.Millisecond
+	cfg.HydeIPC.MaxConcurrent = 2
+	cfg.HydeIPC.Timeout = 999999
+	cfg.HydeIPC.DebounceTime = 100
 
-	if settings, ok := h.findSection("settings"); ok {
-		if settingsMap, ok := settings.(map[string]interface{}); ok {
-			if val, ok := settingsMap["max_concurrent"].(int64); ok {
-				cfg.Settings.MaxConcurrent = int(val)
-			}
-			if val, ok := settingsMap["timeout"].(int64); ok {
-				cfg.Settings.Timeout = time.Duration(val) * time.Second
-			}
-			if val, ok := settingsMap["debounce_time"].(int64); ok {
-				cfg.Settings.DebounceTime = time.Duration(val) * time.Millisecond
-			}
-		}
+	_, err = toml.Decode(string(content), cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse toml: %w", err)
 	}
 
-	if events, ok := h.findSection("hyprland-ipc"); ok {
-		if eventsMap, ok := events.(map[string]interface{}); ok {
-			for key, val := range eventsMap {
-				if strVal, ok := val.(string); ok {
-					cfg.HyprlandIPC[key] = strVal
-				}
-			}
-		}
+	if err := toml.Unmarshal(content, &h.rawData); err != nil {
+		return nil, fmt.Errorf("failed to parse raw toml: %w", err)
 	}
 
-	if len(rawData) == 0 {
+	if len(h.rawData) == 0 {
 		return nil, fmt.Errorf("config file parsing resulted in empty data")
 	}
 

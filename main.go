@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -16,33 +17,40 @@ import (
 	"github.com/adrg/xdg"
 )
 
+// Config stores the application configuration
 type Config struct {
+	HydeIPC struct {
+		MaxConcurrent int `toml:"max_concurrent"`
+		Timeout       int `toml:"timeout"`
+		DebounceTime  int `toml:"debounce_time"`
+	} `toml:"hyde-ipc"`
 	HyprlandIPC map[string]string `toml:"hyprland-ipc"`
-	Settings    struct {
-		MaxConcurrent int           `toml:"max_concurrent"`
-		Timeout       time.Duration `toml:"timeout"`
-		DebounceTime  time.Duration `toml:"debounce_time"`
-	} `toml:"settings"`
 }
 
 var (
-	config         *Config
-	configLock     sync.RWMutex
-	verbose        bool
-	executor       *CommandExecutor
-	configWatcher  *ConfigWatcher
-	lastEvents     = make(map[string]time.Time)
-	lastEventsLock sync.Mutex
-	configHandler  *ConfigHandler
+	config             *Config
+	configLock         sync.RWMutex
+	verbose            bool
+	executor           *CommandExecutor
+	configWatcher      *ConfigWatcher
+	dispatcher         *EventDispatcher
+	lastEvents         = make(map[string]time.Time)
+	lastEventsLock     sync.Mutex
+	configHandler      *ConfigHandler
+	commandLineTimeout int
 )
 
 func main() {
 	flag.BoolVar(&verbose, "verbose", false, "Enable verbose logging")
 	memLimit := flag.Int("memlimit", 8, "Memory limit in MB")
 	noWatch := flag.Bool("nowatch", false, "Disable config file watching")
+	cmdTimeout := flag.Int("timeout", 0, "Override script execution timeout in seconds (0 = use config value)")
 	flag.Parse()
 
 	setMemoryLimit(*memLimit)
+
+	// Store command line timeout for later use
+	commandLineTimeout = *cmdTimeout
 
 	log.SetPrefix("hyde-ipc: ")
 	if verbose {
@@ -62,6 +70,9 @@ func main() {
 	if err := reloadConfig(); err != nil {
 		log.Fatal("Config error: ", err)
 	}
+
+	// Initialize event dispatcher (queue size = 100)
+	dispatcher = NewEventDispatcher(config.HydeIPC.MaxConcurrent, 100, executor)
 
 	if !*noWatch {
 		setupConfigWatcher()
@@ -136,16 +147,21 @@ func reloadConfig() error {
 	config = newConfig
 
 	// Initialize or update executor based on max_concurrent setting
-	maxConcurrent := config.Settings.MaxConcurrent
+	maxConcurrent := config.HydeIPC.MaxConcurrent
 	if maxConcurrent <= 0 {
 		maxConcurrent = 2
 	}
 
 	if executor == nil {
 		executor = NewCommandExecutor(maxConcurrent)
-	} else if oldConfig != nil && oldConfig.Settings.MaxConcurrent != maxConcurrent {
+	} else if oldConfig != nil && oldConfig.HydeIPC.MaxConcurrent != maxConcurrent {
 		// Only create a new executor if the concurrency setting changed
 		executor = NewCommandExecutor(maxConcurrent)
+	}
+
+	// Create or update dispatcher if needed
+	if dispatcher == nil && executor != nil {
+		dispatcher = NewEventDispatcher(maxConcurrent, 100, executor)
 	}
 
 	// Clear event debounce cache on config reload
@@ -157,10 +173,10 @@ func reloadConfig() error {
 
 	// Debug config contents
 	logInfo("Configuration reloaded successfully")
-	logInfo("Settings: max_concurrent=%d, timeout=%s, debounce_time=%s",
-		config.Settings.MaxConcurrent,
-		config.Settings.Timeout,
-		config.Settings.DebounceTime)
+	logInfo("Settings: max_concurrent=%d, timeout=%d, debounce_time=%d",
+		config.HydeIPC.MaxConcurrent,
+		config.HydeIPC.Timeout,
+		config.HydeIPC.DebounceTime)
 
 	logInfo("Configured events (%d):", len(config.HyprlandIPC))
 	for event, script := range config.HyprlandIPC {
@@ -210,6 +226,7 @@ func getHyprlandSocketPath() string {
 	return filepath.Join(runtimeDir, "hypr", his, ".socket2.sock")
 }
 
+// handleEvent processes Hyprland events directly without queuing
 func handleEvent(eventLine string) {
 	parts := strings.SplitN(eventLine, ">>", 2)
 	if len(parts) != 2 {
@@ -232,47 +249,79 @@ func handleEvent(eventLine string) {
 	}
 
 	if strings.Contains(script, "{") {
+		// {0} always represents ALL data
+		if strings.Contains(script, "{0}") {
+			script = strings.Replace(script, "{0}", eventData, -1)
+		}
+
+		// Handle individual positional arguments starting at {1}
 		dataArgs := strings.Split(eventData, ",")
 		for i, arg := range dataArgs {
-			placeholder := fmt.Sprintf("{%d}", i)
+			// Use {1} for first item, {2} for second, etc.
+			placeholder := fmt.Sprintf("{%d}", i+1)
 			script = strings.Replace(script, placeholder, arg, -1)
 		}
 	}
 
-	// Validate the command before execution
-	cmdName, valid := validateCommand(script)
-	if !valid {
-		logInfo("Skipping event %s: command '%s' not found", eventName, cmdName)
+	// Extract the command from the script
+	cmdName := script
+	if idx := strings.Index(script, " "); idx > 0 {
+		cmdName = script[:idx]
+	}
+
+	// Check if command exists
+	_, err := exec.LookPath(cmdName)
+	if err != nil {
+		logInfo("Command not found: %s", cmdName)
 		return
 	}
 
-	go func() {
-		output, err := executor.ExecuteWithTimeout(script, eventData, config.Settings.Timeout)
-		if err != nil {
-			logInfo("Script error [%s]: %v", eventName, err)
-			return
+	// IMPORTANT: Launch immediately in a completely separate goroutine
+	// This is the key fix to prevent blocking
+	go func(eventName, script, eventData string) {
+		logInfo("Executing script for event: %s", eventName)
+
+		// Create command
+		cmd := exec.Command("sh", "-c", script)
+		cmd.Env = append(os.Environ(), "HYDE_EVENT_DATA="+eventData)
+
+		// Set timeout context - use command line value if specified
+		var timeout time.Duration
+		if commandLineTimeout > 0 {
+			timeout = time.Duration(commandLineTimeout) * time.Second
+			logInfo("Using command-line timeout of %d seconds for event %s", commandLineTimeout, eventName)
+		} else {
+			timeout = time.Duration(config.HydeIPC.Timeout) * time.Second
 		}
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 
-		if verbose && len(output) > 0 {
-			logInfo("Script output [%s]: %s", eventName, limitString(string(output), 100))
+		// Run with timeout
+		done := make(chan error, 1)
+		var output []byte
+
+		go func() {
+			var err error
+			output, err = cmd.CombinedOutput()
+			done <- err
+		}()
+
+		// Wait for completion or timeout
+		select {
+		case err := <-done:
+			if err != nil && verbose {
+				logInfo("Script error [%s]: %v", eventName, err)
+			} else if verbose && len(output) > 0 {
+				logInfo("Script output [%s]: %s", eventName, limitString(string(output), 100))
+			}
+		case <-ctx.Done():
+			// Try to kill the process if it times out
+			if cmd.Process != nil {
+				cmd.Process.Kill()
+			}
+			logInfo("Script timeout [%s] after %d seconds", eventName, timeout/time.Second)
 		}
-	}()
-}
-
-func validateCommand(script string) (string, bool) {
-	// Extract the command from the script (everything before first space)
-	cmd := script
-	if idx := strings.Index(script, " "); idx > 0 {
-		cmd = script[:idx]
-	}
-
-	// Check if the command exists in PATH
-	_, err := exec.LookPath(cmd)
-	if err != nil {
-		logInfo("Command not found: %s", cmd)
-		return cmd, false
-	}
-	return cmd, true
+	}(eventName, script, eventData)
 }
 
 func shouldDebounce(eventName string) bool {
@@ -287,7 +336,7 @@ func shouldDebounce(eventName string) bool {
 	now := time.Now()
 	lastTime, exists := lastEvents[eventName]
 
-	if exists && now.Sub(lastTime) < config.Settings.DebounceTime {
+	if exists && now.Sub(lastTime) < time.Duration(config.HydeIPC.DebounceTime)*time.Millisecond {
 		return true
 	}
 
@@ -326,11 +375,11 @@ func createDefaultConfig() error {
 
 	defaultConfig := `# Hyde IPC Configuration for Hyprland
 
-[settings]
+[hyde-ipc]
 # Maximum number of concurrent script executions
 max_concurrent = 2
 # Timeout for script execution in seconds
-timeout = 5
+timeout = 60
 # Debounce time for frequent events in milliseconds
 debounce_time = 100
 
