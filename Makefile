@@ -25,7 +25,7 @@ install: build
 	mkdir -p $(HOME)/.local/bin
 	install -m 755 bin/hyde-ipc $(HOME)/.local/bin/hyde-ipc
 	mkdir -p $(HOME)/.config/systemd/user/
-	cp hyde-ipc.service $(HOME)/.config/systemd/user/
+	cp systemd/hyde-ipc.service $(HOME)/.config/systemd/user/
 	@echo "hyde-ipc installed to $(HOME)/.local/bin/"
 	@echo "Installed systemd service to $(HOME)/.config/systemd/user/"
 	@echo "To enable the service, run: systemctl --user enable hyde-ipc.service"
@@ -44,7 +44,7 @@ uninstall:
 
 # Clean build artifacts
 clean:
-	rm -rf bin
+	rm -rf bin/*
 	go clean
 
 # Run the application with verbose logging
