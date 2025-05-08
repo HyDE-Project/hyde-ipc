@@ -1,125 +1,99 @@
-# Hyde IPC for Hyprland
+# Hyde IPC
 
-A simple Go application that monitors Hyprland IPC events and executes configured scripts based on those events.
+A lightweight event handler for Hyprland that executes custom scripts based on Hyprland IPC events.
+
+## Features
+
+- Minimal memory footprint
+- Fast event processing
+- Configurable script execution for Hyprland events
+- Hot-reloading of configuration
+- Script timeout handling
+- Event debouncing to prevent script spam
 
 ## Installation
 
-1. Clone this repository:
 ```bash
-git clone https://github.com/your-username/hyde-ipc
+# Clone the repository
+git clone https://github.com/khing/hyde-ipc.git
 cd hyde-ipc
-```
 
-2. Build the application:
-```bash
-go build
-```
+# Build and install
+make build
+make install
 
-3. Run the application:
-```bash
-./hyde-ipc
-```
-
-## Configuration
-
-The application automatically creates a default configuration file at `~/.config/hyde/config.toml` if one doesn't exist. You can customize this file to run your own scripts based on Hyprland events.
-
-Example configuration:
-```toml
-[hyprland-ipc]
-# Window title event - triggers notification when window title changes
-windowtitle = "notify-send \"Window Title Changed\" \"$HYDE_EVENT_DATA\""
-
-# Workspace change event
-workspace = "~/scripts/workspace_changed.sh"
-
-# Fullscreen event
-fullscreen = "~/scripts/fullscreen_toggle.sh"
-```
-
-## Using Event Data Arguments
-
-Events can pass multiple pieces of data which you can access individually:
-
-```toml
-# Using positional arguments from event data with {n} placeholders
-# For movewindowv2 which sends: WINDOWADDRESS,WORKSPACEID,WORKSPACENAME
-movewindowv2 = "notify-send 'Window Moved' 'Window {0} moved to workspace {2} (ID: {1})'"
-
-# Accessing the entire event data 
-windowtitle = "notify-send 'Window Title Changed' \"$HYDE_EVENT_DATA\""
-```
-
-## Runtime Options
-
-The application supports the following command line options:
-
-```bash
-# Run with minimal logging (default)
-./hyde-ipc
-
-# Run with verbose logging for debugging
-./hyde-ipc --verbose
-```
-
-## Available Events
-
-The application listens for all Hyprland events. Here are some examples:
-
-- `workspace` - Emitted on workspace change
-- `activewindow` - Emitted on active window change
-- `fullscreen` - Emitted when fullscreen status of a window changes
-- `screencast` - Emitted when a screencopy state changes
-- `monitoradded` / `monitorremoved` - Emitted when monitors are connected/disconnected
-
-For a complete list of events, check the [Hyprland IPC documentation](https://wiki.hyprland.org/IPC/).
-
-## Environment Variables
-
-When executing a script, the application passes the event data as the `HYDE_EVENT_DATA` environment variable. Your script can use this value to react accordingly.
-
-## Running as a Service
-
-To run Hyde IPC automatically when you log in, create a systemd user service:
-
-1. Create the service file:
-```bash
-mkdir -p ~/.config/systemd/user/
-```
-
-2. Add the following content to `~/.config/systemd/user/hyde-ipc.service`:
-```ini
-[Unit]
-Description=Hyde IPC service for Hyprland
-PartOf=graphical-session.target
-After=graphical-session.target
-
-[Service]
-ExecStart=/path/to/hyde-ipc
-Restart=on-failure
-RestartSec=5s
-
-[Install]
-WantedBy=graphical-session.target
-```
-
-3. Enable and start the service:
-```bash
+# Enable and start the systemd service
 systemctl --user enable hyde-ipc.service
 systemctl --user start hyde-ipc.service
 ```
 
-4. For verbose logging with the service:
-```bash
-systemctl --user edit hyde-ipc.service
+## Configuration
+
+Configuration is stored in `~/.config/hyde/config.toml`:
+
+```toml
+[hyde-ipc]
+# Maximum number of concurrent script executions
+max_concurrent = 2
+# Timeout for script execution in seconds
+timeout = 60
+# Debounce time for frequent events in milliseconds
+debounce_time = 100
+
+[hyprland-ipc]
+# Map Hyprland events to scripts
+windowtitle = "notify-send \"Window Title Changed\" \"$HYDE_EVENT_DATA\""
+workspace = "~/.config/hypr/scripts/workspace-change.sh"
+activewindow = "~/.config/hypr/scripts/focus-change.sh"
 ```
 
-Then add `--verbose` to the ExecStart line:
-```ini
-[Service]
-ExecStart=/path/to/hyde-ipc --verbose
+## Event Data
+
+Your scripts receive event data through the `$HYDE_EVENT_DATA` environment variable.
+You can also use placeholders in your scripts:
+
+- `{0}`: Whole event data string
+- `{1}`, `{2}`, etc.: Individual comma-separated values from the event data
+
+## Project Structure
+
+```
+hyde-ipc/
+├── cmd/
+│   └── hyde-ipc/
+│       └── main.go         # Application entry point
+├── internal/
+│   ├── config/
+│   │   ├── config.go       # Configuration handling
+│   │   └── watcher.go      # Config file watching
+│   ├── executor/
+│   │   └── executor.go     # Script execution logic
+│   ├── events/
+│   │   └── dispatcher.go   # Event dispatching
+│   └── utils/
+│       └── utils.go        # Shared utility functions
+├── go.mod
+├── go.sum
+├── Makefile
+└── hyde-ipc.service        # Systemd service file
+```
+
+## Usage
+
+```bash
+# Run with minimal logging
+hyde-ipc
+
+# Run with detailed event logging
+hyde-ipc --verbose
+
+# Override timeout for all scripts (in seconds)
+hyde-ipc --timeout=30
+
+# Disable configuration hot-reloading
+hyde-ipc --nowatch
 ```
 
 ## License
 
-MIT
+MIT License

@@ -1,46 +1,67 @@
-.PHONY: build install clean setup
+# Makefile for hyde-ipc
 
+.PHONY: all build clean install uninstall setup verbose help
 
+# Default target
+all: build
+
+# Ensure bin directory exists
+bin:
+	mkdir -p bin
+
+# Initialize Go module and download dependencies
 setup:
 	go mod tidy
-	go get github.com/BurntSushi/toml
 	go get github.com/adrg/xdg
+	go get github.com/fsnotify/fsnotify
+	go get github.com/pelletier/go-toml/v2
 
+# Build the application into bin directory
+build: setup bin
+	go build -o bin/hyde-ipc ./cmd/hyde-ipc
 
-build: setup
-	go build -o hyde-ipc
-
-
+# Install to user's local bin and systemd service
 install: build
-	mkdir -p $(HOME)/.local/bin/
-	cp hyde-ipc $(HOME)/.local/bin/
+	mkdir -p $(HOME)/.local/bin
+	install -m 755 bin/hyde-ipc $(HOME)/.local/bin/hyde-ipc
 	mkdir -p $(HOME)/.config/systemd/user/
 	cp hyde-ipc.service $(HOME)/.config/systemd/user/
-	@echo "Installed hyde-ipc to $(HOME)/.local/bin/"
+	@echo "hyde-ipc installed to $(HOME)/.local/bin/"
 	@echo "Installed systemd service to $(HOME)/.config/systemd/user/"
 	@echo "To enable the service, run: systemctl --user enable hyde-ipc.service"
 	@echo "To start the service, run: systemctl --user start hyde-ipc.service"
 	@echo "For verbose logging: systemctl --user edit hyde-ipc.service"
 	@echo "  and add --verbose to the ExecStart line"
 
+# Uninstall the application
+uninstall:
+	rm -f $(HOME)/.local/bin/hyde-ipc
+	systemctl --user stop hyde-ipc.service 2>/dev/null || true
+	systemctl --user disable hyde-ipc.service 2>/dev/null || true
+	rm -f $(HOME)/.config/systemd/user/hyde-ipc.service
+	@echo "hyde-ipc uninstalled from $(HOME)/.local/bin/"
+	@echo "Systemd service removed"
 
+# Clean build artifacts
 clean:
-	rm -f hyde-ipc
+	rm -rf bin
+	go clean
 
-
+# Run the application with verbose logging
 verbose: build
-	./hyde-ipc --verbose
+	./bin/hyde-ipc --verbose
 
-
+# Display help information
 help:
 	@echo "Hyde IPC for Hyprland"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  setup   - Initialize Go module and download dependencies"
-	@echo "  build   - Build the hyde-ipc binary"
-	@echo "  install - Install hyde-ipc to ~/.local/bin/ and systemd service"
-	@echo "  verbose - Run the application with verbose logging"
-	@echo "  clean   - Remove build artifacts"
+	@echo "  setup     - Initialize Go module and download dependencies"
+	@echo "  build     - Build the hyde-ipc binary"
+	@echo "  install   - Install hyde-ipc to ~/.local/bin/ and systemd service"
+	@echo "  uninstall - Remove hyde-ipc from ~/.local/bin/ and systemd service"
+	@echo "  verbose   - Run the application with verbose logging"
+	@echo "  clean     - Remove build artifacts"
 	@echo ""
 	@echo "Usage:"
 	@echo "  hyde-ipc         - Run normally with minimal logging"
