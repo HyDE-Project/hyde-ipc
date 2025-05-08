@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"github.com/khing/hyde-ipc/internal/utils"
 )
 
+// Global variables - keeping to minimum needed
 var (
 	cfg                *config.Config
 	configLock         sync.RWMutex
@@ -44,10 +46,8 @@ func main() {
 	// Store command line timeout
 	commandLineTimeout = *cmdTimeout
 
-	// Set memory limit if needed
-	if *memLimit > 0 {
-		setMemoryLimit(*memLimit)
-	}
+	// Configure GC for lower memory usage
+	optimizeMemoryUsage(*memLimit)
 
 	// Check and create default config if needed
 	configPath := filepath.Join(xdg.ConfigHome, "hyde", "config.toml")
@@ -78,10 +78,10 @@ func main() {
 
 	utils.LogInfo("Connected to Hyprland socket, listening for events...")
 
-	// Read events from socket
+	// Read events from socket - use a limited buffer for memory efficiency
 	scanner := bufio.NewScanner(conn)
-	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 64*1024)
+	buf := make([]byte, 0, 16*1024) // Smaller initial buffer
+	scanner.Buffer(buf, 64*1024)    // Max size still needs to be sufficient
 
 	// Process events
 	for scanner.Scan() {
@@ -91,6 +91,25 @@ func main() {
 	// Check for scanner errors
 	if err := scanner.Err(); err != nil {
 		log.Fatal("Socket error: ", err)
+	}
+}
+
+// optimizeMemoryUsage configures GC and memory limits for minimal footprint
+func optimizeMemoryUsage(memLimitMB int) {
+	// Enable aggressive GC
+	debug.SetGCPercent(20) // Lower percentage triggers GC more frequently
+
+	// Free OS memory more aggressively
+	go func() {
+		for {
+			debug.FreeOSMemory()
+			time.Sleep(30 * time.Second)
+		}
+	}()
+
+	// Set memory limit if needed
+	if memLimitMB > 0 {
+		setMemoryLimit(memLimitMB)
 	}
 }
 
@@ -249,9 +268,19 @@ func handleEvent(eventLine string) {
 func executeScript(eventName, script, eventData string) {
 	utils.LogInfo("Executing script for event: %s", eventName)
 
-	// Create command
+	// Create command with minimal resource usage
 	cmd := exec.Command("sh", "-c", script)
-	cmd.Env = append(os.Environ(), "HYDE_EVENT_DATA="+eventData)
+
+	// Set minimal environment to reduce memory usage
+	cmd.Env = []string{
+		"PATH=" + os.Getenv("PATH"),
+		"HOME=" + os.Getenv("HOME"),
+		"DISPLAY=" + os.Getenv("DISPLAY"),
+		"WAYLAND_DISPLAY=" + os.Getenv("WAYLAND_DISPLAY"),
+		"XDG_RUNTIME_DIR=" + os.Getenv("XDG_RUNTIME_DIR"),
+		"DBUS_SESSION_BUS_ADDRESS=" + os.Getenv("DBUS_SESSION_BUS_ADDRESS"),
+		"HYDE_EVENT_DATA=" + eventData,
+	}
 
 	// Set timeout context - use command line value if specified
 	var timeout time.Duration
@@ -297,6 +326,10 @@ func executeScript(eventName, script, eventData string) {
 		}
 		utils.LogInfo("Script timeout [%s] after %d seconds", eventName, timeout/time.Second)
 	}
+
+	// Explicitly free resources
+	done = nil
+	cmd = nil
 }
 
 // shouldDebounce checks if an event should be debounced (ignored)
