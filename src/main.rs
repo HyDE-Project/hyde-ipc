@@ -1,3 +1,9 @@
+//!  Delegates to cli::main()
+//TODO: add --version
+//FIX: cargo fkin docs
+mod cli;
+
 fn main() {
-    println!("HyDE-IPC; rewrite in Rust");
+    cli::main();
 }
+
