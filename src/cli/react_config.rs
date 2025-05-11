@@ -2,8 +2,7 @@ use std::fs;
 use std::path::Path;
 use serde::{Serialize, Deserialize};
 use hyprland::event_listener::EventListener;
-use hyprland::shared::HyprError;
-use hyprland::dispatch::{Dispatch, DispatchType};
+use hyprland::dispatch::Dispatch;
 use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -294,11 +293,8 @@ impl Reaction {
 
         // Parse the dispatcher
         // Convert Vec<&str> to Vec<String> for compatibility with the CLI parser
-        let args_as_strings: Vec<String> = self.args.iter().map(|s| s.clone()).collect();
-        let dispatch_type = match super::dispatch::parse_dispatcher(&self.dispatcher, &args_as_strings) {
-            Ok(dt) => dt,
-            Err(e) => return Err(e),
-        };
+        let args_as_strings: Vec<String> = self.args.iter().cloned().collect();
+        let dispatch_type = super::dispatch::parse_dispatcher(&self.dispatcher, &args_as_strings)?;
 
         println!("Executing reaction for event {}: {} {:?}", self.event_type, self.dispatcher, self.args);
         

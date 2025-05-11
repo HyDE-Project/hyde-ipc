@@ -1,5 +1,5 @@
 use hyprland::event_listener::EventListener;
-use hyprland::dispatch::{Dispatch, DispatchType};
+use hyprland::dispatch::Dispatch;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use crate::cli::dispatch::parse_dispatcher;

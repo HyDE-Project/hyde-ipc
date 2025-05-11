@@ -47,7 +47,7 @@ ahash = ["hyprland/ahash"]
 unsafe-impl = ["hyprland/unsafe-impl"]
 
 
-# [profile.release]
-# opt-level = 3
-# strip = true
-# lto = true
+[profile.release]
+opt-level = 3
+strip = true
+lto = true
