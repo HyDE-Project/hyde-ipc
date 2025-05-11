@@ -5,8 +5,7 @@
 ### clone
 
 ```bash
-
-git --depth=1 clone https://github.com/primetype/hyde-ipc.git
+git  clone --depth 1 https://github.com/primetype/hyde-ipc.git
 cd hyde-ipc
 
 ```
