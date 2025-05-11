@@ -15,7 +15,7 @@ pub fn sync_react(
     println!("Press Ctrl+C to stop");
     
     // Parse the dispatcher once to validate it
-    let dispatch_type = match parse_dispatcher(&dispatcher, &args) {
+    let _dispatch_type = match parse_dispatcher(&dispatcher, &args) {
         Ok(dt) => dt,
         Err(e) => {
             eprintln!("Error parsing dispatcher: {}", e);

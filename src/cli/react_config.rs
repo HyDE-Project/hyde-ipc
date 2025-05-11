@@ -109,60 +109,6 @@ impl fmt::Display for EventType {
     }
 }
 
-impl EventType {
-    /// Parse an event type from strings
-    pub fn from_str(event_type: &str, subtype: Option<&str>) -> Result<Self, String> {
-        match event_type.to_lowercase().as_str() {
-            "window" => {
-                if let Some(subtype) = subtype {
-                    match subtype.to_lowercase().as_str() {
-                        "opened" => Ok(EventType::Window(WindowEventType::Opened)),
-                        "closed" => Ok(EventType::Window(WindowEventType::Closed)),
-                        "moved" => Ok(EventType::Window(WindowEventType::Moved)),
-                        "active" => Ok(EventType::Window(WindowEventType::Active)),
-                        _ => Err(format!("Unknown window subtype: {}", subtype)),
-                    }
-                } else {
-                    // Default to Active if no subtype specified
-                    Ok(EventType::Window(WindowEventType::Active))
-                }
-            },
-            "workspace" => {
-                if let Some(subtype) = subtype {
-                    match subtype.to_lowercase().as_str() {
-                        "changed" => Ok(EventType::Workspace(WorkspaceEventType::Changed)),
-                        "added" => Ok(EventType::Workspace(WorkspaceEventType::Added)),
-                        "deleted" => Ok(EventType::Workspace(WorkspaceEventType::Deleted)),
-                        _ => Err(format!("Unknown workspace subtype: {}", subtype)),
-                    }
-                } else {
-                    // Default to Changed if no subtype specified
-                    Ok(EventType::Workspace(WorkspaceEventType::Changed))
-                }
-            },
-            "monitor" => Ok(EventType::Monitor),
-            "float" => Ok(EventType::Float),
-            "fullscreen" => Ok(EventType::Fullscreen),
-            "layout" => Ok(EventType::Layout),
-            "group" => {
-                if let Some(subtype) = subtype {
-                    match subtype.to_lowercase().as_str() {
-                        "toggled" => Ok(EventType::Group(GroupEventType::Toggled)),
-                        "moved_in" => Ok(EventType::Group(GroupEventType::MovedIn)),
-                        "moved_out" => Ok(EventType::Group(GroupEventType::MovedOut)),
-                        _ => Err(format!("Unknown group subtype: {}", subtype)),
-                    }
-                } else {
-                    // Default to Toggled if no subtype specified
-                    Ok(EventType::Group(GroupEventType::Toggled))
-                }
-            },
-            "config" => Ok(EventType::Config),
-            _ => Err(format!("Unknown event type: {}", event_type)),
-        }
-    }
-}
-
 /// A reaction to a Hyprland event
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Reaction {
@@ -219,27 +165,9 @@ impl ReactionBuilder {
         self
     }
 
-    /// Add an argument for the dispatcher
-    pub fn with_arg(mut self, arg: impl Into<String>) -> Self {
-        self.args.push(arg.into());
-        self
-    }
-
     /// Add multiple arguments for the dispatcher
     pub fn with_args(mut self, args: impl IntoIterator<Item = impl Into<String>>) -> Self {
         self.args.extend(args.into_iter().map(Into::into));
-        self
-    }
-
-    /// Set the maximum number of times this reaction should trigger (0 for unlimited)
-    pub fn limit(mut self, max_count: usize) -> Self {
-        self.max_count = max_count;
-        self
-    }
-
-    /// Set whether to use async mode for dispatching
-    pub fn async_mode(mut self, is_async: bool) -> Self {
-        self.is_async = is_async;
         self
     }
 

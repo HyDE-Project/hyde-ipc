@@ -80,7 +80,7 @@ pub fn main() {
                 process::exit(1);
             }
         }
-        Commands::React { r#async, config, create_template, inline, event, subtype, dispatcher, args, max_reactions } => {
+        Commands::React { r#async, config, create_template, inline: _, event, subtype, dispatcher, args, max_reactions } => {
             // Handle creating a template config if requested
             if let Some(path) = create_template {
                 if let Err(e) = react_config::create_template_config(&path) {
