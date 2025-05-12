@@ -1,0 +1,35 @@
+name: Generate and Commit Cargo Docs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Generate documentation
+        run: cargo doc --no-deps
+
+      - name: Copy documentation to root directory
+        run: |
+          mkdir -p ./docs
+          cp -r target/doc/* ./docs
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.name "GitHub Actions"
+          git config --local user.email "actions@github.com"
+          git add ./docs
+          git commit -m "Update generated documentation"
+          git push origin cargo/docs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
