@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Flag","Key","Mod"],"struct":["Binder","Binding"]};

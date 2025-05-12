@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["SwitchXKBLayoutCmdTypes"],"fn":["call","call_async"]};

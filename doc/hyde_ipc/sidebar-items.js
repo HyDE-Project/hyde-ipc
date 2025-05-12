@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":["async_closure","bind","command","dispatch"],"mod":["config","ctl","data","dispatch","event_listener","keyword","prelude","shared"],"type":["Result"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":["async_closure"],"trait":["HyprData","HyprDataActive","HyprDataActiveOptional","HyprDataVec"]};

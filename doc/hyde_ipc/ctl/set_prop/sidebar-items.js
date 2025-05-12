@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PropType"],"fn":["call","call_async"]};

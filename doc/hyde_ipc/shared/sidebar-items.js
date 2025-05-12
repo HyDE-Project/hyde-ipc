@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["CommandFlag","HyprError","WorkspaceType"],"macro":["command"],"struct":["Address","CommandContent"],"trait":["HyprData","HyprDataActive","HyprDataActiveOptional","HyprDataVec"],"type":["MonitorId","WorkspaceId"]};

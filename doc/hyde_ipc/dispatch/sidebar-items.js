@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Corner","CycleDirection","Direction","DispatchType","FocusMasterParam","FullscreenType","LockType","MonitorIdentifier","Position","SwapWithMasterParam","WindowIdentifier","WindowMove","WindowSwitchDirection","WorkspaceIdentifier","WorkspaceIdentifierWithSpecial","WorkspaceOptions"],"struct":["Dispatch"]};

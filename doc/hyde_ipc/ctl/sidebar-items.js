@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["dismissnotify","kill","notify","output","plugin","reload","set_cursor","set_error","set_prop","switch_xkb_layout"],"struct":["Color"]};
