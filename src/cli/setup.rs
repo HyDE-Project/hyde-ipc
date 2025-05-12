@@ -7,6 +7,16 @@ use std::process::Command;
 pub fn setup_service_file() {
     let username = env::var("USER").expect("Could not get $USER");
     let home = env::var("HOME").expect("Could not get $HOME");
+    // Get the full path to the hyde-ipc binary using `which hyde-ipc`
+    let which_output = Command::new("which")
+        .arg("hyde-ipc")
+        .output()
+        .expect("Failed to run 'which hyde-ipc'");
+    if !which_output.status.success() {
+        eprintln!("Could not find hyde-ipc binary in PATH");
+        std::process::exit(1);
+    }
+    let hyde_ipc_path = String::from_utf8_lossy(&which_output.stdout).trim().to_string();
     let config_path = format!("/home/{}/.local/share/hyde-ipc/config.toml", username);
     let service_content = format!(
         r#"[Unit]
@@ -14,7 +24,7 @@ pub fn setup_service_file() {
             After=default.target
 
             [Service]
-            ExecStart=/usr/bin/hyde-ipc react -c {}
+            ExecStart={} react -c {}
             Restart=always
             StandardOutput=journal
             StandardError=journal
@@ -22,6 +32,7 @@ pub fn setup_service_file() {
             [Install]
             WantedBy=default.target
         "#,
+        hyde_ipc_path,
         config_path
     );
     let systemd_dir = PathBuf::from(&home).join(".config/systemd/user");
