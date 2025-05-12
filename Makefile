@@ -28,6 +28,6 @@ install: release
 	@echo "Installing $(BIN_DIR)/$(BIN_NAME) to $(INSTALL_DIR)..."
 	@sudo cp $(BIN_DIR)/$(BIN_NAME) $(INSTALL_DIR)/$(BIN_NAME)
 	@echo "Installed."
+	@hyde-ipc global -s
 	@$(MAKE) clean
-
 
