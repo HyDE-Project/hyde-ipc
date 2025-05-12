@@ -147,8 +147,11 @@ impl Reaction {
         let args_as_strings: Vec<String> = self.args.to_vec();
         let dispatch_type = super::dispatch::parse_dispatcher(&self.dispatcher, &args_as_strings)?;
 
-        println!("Executing reaction for event {}: {} {:?}", self.event_type, self.dispatcher, self.args);
-        
+        println!(
+            "Executing reaction for event {}: {} {:?}",
+            self.event_type, self.dispatcher, self.args
+        );
+
         // Always execute synchronously
         if let Err(e) = Dispatch::call(dispatch_type) {
             eprintln!("Error executing dispatcher: {}", e);
@@ -376,7 +379,7 @@ pub fn run_from_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
     let config = ReactConfig::from_file(path)?;
 
     println!("Loaded {} reactions", config.reactions.len());
-    
+
     // Run the reactions
     config.run()
 }
