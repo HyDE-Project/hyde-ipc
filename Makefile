@@ -13,7 +13,7 @@ release: clean
 	@cp $(REL_TGT) $(BIN_DIR)/$(BIN_NAME)
 	@echo "Built release -> $(BIN_DIR)/$(BIN_NAME)"
 
-debug: clean
+debug:
 	@cargo build
 	@mkdir -p $(BIN_DIR)
 	@cp $(DBG_TGT) $(BIN_DIR)/debug-$(BIN_NAME)
