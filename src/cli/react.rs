@@ -1,9 +1,27 @@
 use crate::cli::dispatch::parse_dispatcher;
+//! # Hyprland Event Reactions
+//! 
+//! This module provides functionality for reacting to Hyprland events
+//! by executing commands when specific events occur.
+
 use hyprland::dispatch::Dispatch;
 use hyprland::event_listener::EventListener;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+/// React to Hyprland events by executing commands when the events occur
+///
+/// # Arguments
+///
+/// * `event` - The event type to react to (e.g., "window", "workspace")
+/// * `subtype` - Optional subtype to filter events (e.g., "opened" for window events)
+/// * `dispatcher` - The dispatcher command to execute when the event occurs
+/// * `args` - Arguments for the dispatcher
+/// * `max_reactions` - Maximum number of reactions (0 for unlimited)
+///
+/// # Returns
+///
+/// * `hyprland::Result<()>` - Result of the operation
 pub fn sync_react(
     event: String,
     subtype: Option<String>,

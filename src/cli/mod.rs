@@ -1,4 +1,19 @@
 mod dispatch;
+
+//! # CLI Module
+//! 
+//! The CLI module contains the implementation of the command-line interface
+//! for interacting with Hyprland.
+//! 
+//! ## Submodules
+//! 
+//! - `flags`: Command-line argument parsing using Clap
+//! - `keyword`: Implementations for reading and setting Hyprland keywords
+//! - `dispatch`: Implementations for sending commands to Hyprland
+//! - `listen`: Implementation for listening to Hyprland events
+//! - `react`: Implementation for reacting to Hyprland events
+//! - `react_config`: Configuration for event reactions
+
 mod flags;
 mod keyword;
 mod listen;
