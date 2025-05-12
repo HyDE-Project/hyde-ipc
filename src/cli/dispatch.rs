@@ -170,26 +170,19 @@ fn print_available_dispatchers() {
 
 /// Parse a window identifier from a string
 fn parse_window_identifier(identifier: &str) -> Result<WindowIdentifier<'static>, String> {
-    if identifier.starts_with("class:") {
-        let class = &identifier["class:".len()..];
+    if let Some(class) = identifier.strip_prefix("class:") {
         let class_static = Box::leak(class.to_string().into_boxed_str());
         Ok(WindowIdentifier::ClassRegularExpression(class_static))
-    } else if identifier.starts_with("title:") {
-        let title = &identifier["title:".len()..];
+    } else if let Some(title) = identifier.strip_prefix("title:") {
         let title_static = Box::leak(title.to_string().into_boxed_str());
         Ok(WindowIdentifier::Title(title_static))
-    } else if identifier.starts_with("pid:") {
-        let pid_str = &identifier["pid:".len()..];
+    } else if let Some(pid_str) = identifier.strip_prefix("pid:") {
         if let Ok(pid) = pid_str.parse::<u32>() {
             Ok(WindowIdentifier::ProcessId(pid))
         } else {
             Err(format!("Invalid PID: {}", pid_str))
         }
-    } else if identifier.starts_with("address:") {
-        // Get the address part without the prefix
-        let addr_str = &identifier["address:".len()..];
-        // Create an Address directly from the string
-        // Address::new handles both with and without 0x prefix
+    } else if let Some(addr_str) = identifier.strip_prefix("address:") {
         Ok(WindowIdentifier::Address(Address::new(addr_str)))
     } else {
         // Default to class if no prefix is provided
@@ -361,4 +354,3 @@ pub fn parse_dispatcher(
         _ => Err(format!("Unknown dispatcher: {}", dispatcher)),
     }
 }
-
