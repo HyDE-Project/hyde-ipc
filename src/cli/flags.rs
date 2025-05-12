@@ -107,5 +107,17 @@ pub enum Commands {
         #[arg(short = 'n', long = "max-reactions", default_value = "0")]
         max_reactions: usize,
     },
+
+    /// Install a config globally and restart the user service
+    Global {
+        /// Path to the config file to install globally (optional if --setup is used)
+        config_path: Option<String>,
+        /// Also set up the user service file
+        #[arg(short = 's', long = "setup")]
+        setup: bool,
+    },
+
+    /// Set up the systemd user service for hyde-ipc
+    Setup,
     // Future: Add more subcommands here!
 }
