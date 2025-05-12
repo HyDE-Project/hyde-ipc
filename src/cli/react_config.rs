@@ -127,85 +127,7 @@ pub struct Reaction {
     pub description: Option<String>,
 }
 
-/// Builder for creating reactions
-pub struct ReactionBuilder {
-    event_type: Option<EventType>,
-    dispatcher: Option<String>,
-    args: Vec<String>,
-    max_count: Option<usize>,
-    name: Option<String>,
-    description: Option<String>,
-}
-
-impl ReactionBuilder {
-    /// Create a new reaction builder
-    pub fn new() -> Self {
-        Self {
-            event_type: None,
-            dispatcher: None,
-            args: Vec::new(),
-            max_count: None, // None means unlimited (0)
-            name: None,
-            description: None,
-        }
-    }
-
-    /// Set the event type that triggers this reaction
-    pub fn on_event(mut self, event_type: EventType) -> Self {
-        self.event_type = Some(event_type);
-        self
-    }
-
-    /// Set the dispatcher to execute when the event occurs
-    pub fn dispatch(mut self, dispatcher: impl Into<String>) -> Self {
-        self.dispatcher = Some(dispatcher.into());
-        self
-    }
-
-    /// Add multiple arguments for the dispatcher
-    pub fn with_args(mut self, args: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        self.args.extend(args.into_iter().map(Into::into));
-        self
-    }
-
-    /// Set the name of the reaction
-    pub fn name(mut self, name: impl Into<String>) -> Self {
-        self.name = Some(name.into());
-        self
-    }
-
-    /// Set the description of what the reaction does
-    pub fn description(mut self, description: impl Into<String>) -> Self {
-        self.description = Some(description.into());
-        self
-    }
-
-    /// Build the reaction
-    pub fn build(self) -> Result<Reaction, String> {
-        let event_type = self
-            .event_type
-            .ok_or_else(|| "Event type is required".to_string())?;
-        let dispatcher = self
-            .dispatcher
-            .ok_or_else(|| "Dispatcher is required".to_string())?;
-
-        Ok(Reaction {
-            event_type,
-            dispatcher,
-            args: self.args,
-            max_count: self.max_count,
-            name: self.name,
-            description: self.description,
-        })
-    }
-}
-
 impl Reaction {
-    /// Create a new reaction builder
-    pub fn builder() -> ReactionBuilder {
-        ReactionBuilder::new()
-    }
-
     /// Execute this reaction
     pub fn execute(&self, count: &Arc<AtomicUsize>) -> Result<bool, String> {
         // Check if we've reached the maximum count
@@ -225,11 +147,8 @@ impl Reaction {
         let args_as_strings: Vec<String> = self.args.to_vec();
         let dispatch_type = super::dispatch::parse_dispatcher(&self.dispatcher, &args_as_strings)?;
 
-        println!(
-            "Executing reaction for event {}: {} {:?}",
-            self.event_type, self.dispatcher, self.args
-        );
-
+        println!("Executing reaction for event {}: {} {:?}", self.event_type, self.dispatcher, self.args);
+        
         // Always execute synchronously
         if let Err(e) = Dispatch::call(dispatch_type) {
             eprintln!("Error executing dispatcher: {}", e);
@@ -413,12 +332,6 @@ pub struct ReactConfig {
 }
 
 impl ReactConfig {
-    pub fn new() -> Self {
-        Self {
-            reactions: Vec::new(),
-        }
-    }
-
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
         let content = fs::read_to_string(path.as_ref())
             .map_err(|e| format!("Failed to read config file: {}", e))?;
@@ -444,29 +357,6 @@ impl ReactConfig {
         }
     }
 
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), String> {
-        // Determine file format based on extension
-        let extension = path
-            .as_ref()
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or("");
-
-        let content = match extension.to_lowercase().as_str() {
-            "json" => serde_json::to_string_pretty(self)
-                .map_err(|e| format!("Failed to serialize config to JSON: {}", e))?,
-            "toml" => toml::to_string_pretty(self)
-                .map_err(|e| format!("Failed to serialize config to TOML: {}", e))?,
-            _ => {
-                // Default to JSON if extension is not recognized
-                serde_json::to_string_pretty(self)
-                    .map_err(|e| format!("Failed to serialize config: {}", e))?
-            }
-        };
-
-        fs::write(path, content).map_err(|e| format!("Failed to write config file: {}", e))
-    }
-
     pub fn run(&self) -> Result<(), String> {
         let mut manager = ReactionManager::new();
 
@@ -478,52 +368,6 @@ impl ReactConfig {
     }
 }
 
-/// Create a template configuration file with example reactions
-pub fn create_template_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
-    // Create a config with example reactions
-    let mut config = ReactConfig::new();
-
-    // Example 1: Center windows when they open
-    let reaction1 = Reaction::builder()
-        .on_event(EventType::Window(WindowEventType::Opened))
-        .dispatch("CenterWindow")
-        .name("Center New Windows")
-        .description("Centers windows when they are opened")
-        .build()
-        .map_err(|e| format!("Failed to build reaction: {}", e))?;
-
-    // Example 2: Send notification when workspace changes
-    let reaction2 = Reaction::builder()
-        .on_event(EventType::Workspace(WorkspaceEventType::Changed))
-        .dispatch("Exec")
-        .with_args(vec![
-            "notify-send".to_string(),
-            "Workspace Changed".to_string(),
-        ])
-        .name("Workspace Notification")
-        .description("Sends a notification when changing workspaces")
-        .build()
-        .map_err(|e| format!("Failed to build reaction: {}", e))?;
-
-    // Example 3: Move Firefox windows to workspace 2 when they open
-    let reaction3 = Reaction::builder()
-        .on_event(EventType::Window(WindowEventType::Opened))
-        .dispatch("MoveToWorkspaceOnce")
-        .with_args(vec!["class:^(firefox)$".to_string(), "2".to_string()])
-        .name("Firefox to Workspace 2")
-        .description("Moves Firefox windows to workspace 2 when they open")
-        .build()
-        .map_err(|e| format!("Failed to build reaction: {}", e))?;
-
-    // Add the reactions to the config
-    config.reactions.push(reaction1);
-    config.reactions.push(reaction2);
-    config.reactions.push(reaction3);
-
-    // Save the config to the file
-    config.save_to_file(path)
-}
-
 /// Run reactions from a configuration file
 pub fn run_from_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
     println!("Loading reactions from {}", path.as_ref().display());
@@ -532,7 +376,7 @@ pub fn run_from_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
     let config = ReactConfig::from_file(path)?;
 
     println!("Loaded {} reactions", config.reactions.len());
-
+    
     // Run the reactions
     config.run()
 }

@@ -83,10 +83,6 @@ pub enum Commands {
         #[arg(short = 'c', long = "config", group = "mode")]
         config: Option<String>,
 
-        /// Create a new config file template
-        #[arg(short = 't', long = "create-template")]
-        create_template: Option<String>,
-
         /// Use inline mode (single reaction)
         #[arg(short = 'i', long = "inline", group = "mode")]
         inline: bool,
