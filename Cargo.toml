@@ -3,6 +3,7 @@ name = "hyde-ipc"
 edition = "2024"
 readme = "README.md"
 #####
+authors.workspace = true
 version.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -11,11 +12,12 @@ categories.workspace = true
 
 
 [workspace.package]
-version = "0.0.1"
-license = ""
-repository = ""
-keywords = []
-categories = [""]
+authors = ["prime-run <prime-run@github.com>"]
+version = "0.1.0"
+license = "MIT"
+repository = "https://github.com/HyDE-Project/hyde-ipc"
+keywords = ["hyde", "hyde-ipc", "hyprland", "hyprland-ipc"]
+categories = ["API bindings"]
 
 
 [workspace]
