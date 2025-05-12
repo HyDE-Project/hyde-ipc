@@ -1,9 +1,22 @@
+//! # Hyprland Dispatch Commands
+//! 
+//! This module provides functionality for sending commands to Hyprland.
+//! It includes parsers for command strings and handlers for synchronous
+//! and asynchronous dispatch execution.
+
 use hyprland::dispatch::{
     Corner, CycleDirection, Direction, Dispatch, DispatchType, FullscreenType, WindowIdentifier,
     WorkspaceIdentifierWithSpecial,
 };
 use hyprland::shared::Address;
 
+/// Synchronously dispatch a command to Hyprland
+///
+/// # Arguments
+///
+/// * `list_dispatchers` - Whether to just list available dispatchers instead of executing a command
+/// * `dispatcher` - The name of the dispatcher to execute
+/// * `args` - Arguments for the dispatcher
 pub fn sync_dispatch(list_dispatchers: bool, dispatcher: String, args: Vec<String>) {
     if list_dispatchers {
         print_available_dispatchers();
@@ -198,7 +211,20 @@ fn parse_window_identifier(identifier: &str) -> Result<WindowIdentifier<'static>
     }
 }
 
-// We use a String for program and name to avoid lifetime issues
+/// Parse a dispatcher command string into a DispatchType
+///
+/// This function takes a dispatcher name and arguments and converts them
+/// into the appropriate DispatchType enum variant that can be executed.
+///
+/// # Arguments
+///
+/// * `dispatcher` - The name of the dispatcher (e.g., "MoveFocus", "Workspace")
+/// * `args` - Arguments for the dispatcher
+///
+/// # Returns
+///
+/// * `Ok(DispatchType)` - The parsed dispatcher ready to be executed
+/// * `Err(String)` - Error message if parsing failed
 pub fn parse_dispatcher(
     dispatcher: &str,
     args: &[String],

@@ -1,3 +1,9 @@
+//! # Event Reaction Configuration
+//! 
+//! This module provides configuration structures and handling for reacting to
+//! Hyprland events. It supports loading and saving reaction configurations
+//! from JSON or TOML files.
+
 use std::fs;
 use std::path::Path;
 use serde::{Serialize, Deserialize};
@@ -242,6 +248,9 @@ impl Reaction {
 }
 
 /// Manager for handling multiple reactions
+///
+/// Manages a collection of reactions and sets up event handlers
+/// for each one.
 #[derive(Debug)]
 pub struct ReactionManager {
     reactions: Vec<(Reaction, Arc<AtomicUsize>)>,
@@ -393,6 +402,10 @@ impl ReactionManager {
     }
 }
 
+/// Configuration for event reactions
+///
+/// Contains a collection of reactions that can be loaded from
+/// or saved to a configuration file (JSON or TOML).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ReactConfig {
     pub reactions: Vec<Reaction>,
@@ -462,6 +475,18 @@ impl ReactConfig {
 }
 
 /// Create a template configuration file with example reactions
+///
+/// This function creates a new configuration file at the specified path
+/// with a set of example reactions that demonstrate how to use the system.
+///
+/// # Arguments
+///
+/// * `path` - The path where the configuration file should be created
+///
+/// # Returns
+///
+/// * `Ok(())` - If the file was created successfully
+/// * `Err(String)` - Error message if creation failed
 pub fn create_template_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
     // Create a config with example reactions
     let mut config = ReactConfig::new();
@@ -505,6 +530,18 @@ pub fn create_template_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
 }
 
 /// Run reactions from a configuration file
+///
+/// This function loads a configuration file, sets up event handlers
+/// for each reaction, and starts listening for events.
+///
+/// # Arguments
+///
+/// * `path` - The path to the configuration file
+///
+/// # Returns
+///
+/// * `Ok(())` - If reactions were set up and started successfully
+/// * `Err(String)` - Error message if loading or starting failed
 pub fn run_from_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
     println!("Loading reactions from {}", path.as_ref().display());
     

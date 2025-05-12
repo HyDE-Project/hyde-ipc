@@ -1,12 +1,20 @@
+//! # Command-line Argument Definitions
+//! 
+//! This module defines the command-line interface structure using Clap.
+//! It contains the main CLI struct and all available commands and arguments.
+
 use clap::{Parser, Subcommand, ArgGroup};
 
+/// Root CLI struct that contains the subcommands
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
+    /// The subcommand to execute
     #[command(subcommand)]
     pub command: Commands,
 }
 
+/// Enum of all available subcommands
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     /// Get or set a keyword
