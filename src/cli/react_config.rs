@@ -168,12 +168,6 @@ impl ReactionBuilder {
         self
     }
 
-    /// Set the max_count (optional)
-    pub fn max_count(mut self, max_count: usize) -> Self {
-        self.max_count = Some(max_count);
-        self
-    }
-
     /// Set the name of the reaction
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.name = Some(name.into());
