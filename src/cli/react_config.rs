@@ -202,7 +202,7 @@ impl ReactionBuilder {
 
 impl Reaction {
     /// Create a new reaction builder
-    pub fn new() -> ReactionBuilder {
+    pub fn builder() -> ReactionBuilder {
         ReactionBuilder::new()
     }
 
@@ -484,7 +484,7 @@ pub fn create_template_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
     let mut config = ReactConfig::new();
 
     // Example 1: Center windows when they open
-    let reaction1 = Reaction::new()
+    let reaction1 = Reaction::builder()
         .on_event(EventType::Window(WindowEventType::Opened))
         .dispatch("CenterWindow")
         .name("Center New Windows")
@@ -493,7 +493,7 @@ pub fn create_template_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
         .map_err(|e| format!("Failed to build reaction: {}", e))?;
 
     // Example 2: Send notification when workspace changes
-    let reaction2 = Reaction::new()
+    let reaction2 = Reaction::builder()
         .on_event(EventType::Workspace(WorkspaceEventType::Changed))
         .dispatch("Exec")
         .with_args(vec![
@@ -506,7 +506,7 @@ pub fn create_template_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
         .map_err(|e| format!("Failed to build reaction: {}", e))?;
 
     // Example 3: Move Firefox windows to workspace 2 when they open
-    let reaction3 = Reaction::new()
+    let reaction3 = Reaction::builder()
         .on_event(EventType::Window(WindowEventType::Opened))
         .dispatch("MoveToWorkspaceOnce")
         .with_args(vec!["class:^(firefox)$".to_string(), "2".to_string()])
