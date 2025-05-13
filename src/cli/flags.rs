@@ -1,10 +1,14 @@
+//! CLI argument definitions for hyde-ipc.
+//!
+//! This module defines the command-line interface using clap, including all subcommands and their options.
+
 use clap::{ArgGroup, Parser, Subcommand};
 
 /// Command-line interface for hyde-ipc.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
-    /// The subcommand to execute
+    /// The subcommand to execute.
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -12,7 +16,7 @@ pub struct Cli {
 /// All supported subcommands for hyde-ipc.
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Get or set a keyword
+    /// Get or set a keyword value.
     #[command(group(
         ArgGroup::new("action")
             .required(true)
@@ -38,7 +42,7 @@ pub enum Commands {
         value: Option<String>,
     },
 
-    /// Execute a dispatcher
+    /// Execute a dispatcher command.
     Dispatch {
         /// Use async mode
         #[arg(short = 'a', long = "async")]
@@ -56,7 +60,7 @@ pub enum Commands {
         args: Vec<String>,
     },
 
-    /// Listen for and log Hyprland events
+    /// Listen for and log Hyprland events.
     Listen {
         /// Filter events by type (e.g., "window", "workspace")
         #[arg(short = 'f', long = "filter")]
@@ -71,7 +75,7 @@ pub enum Commands {
         json: bool,
     },
 
-    /// React to specific events by dispatching commands
+    /// React to specific events by dispatching commands.
     #[command(group(
         ArgGroup::new("mode")
             .required(false)
@@ -115,16 +119,22 @@ pub enum Commands {
         max_reactions: usize,
     },
 
-    /// Install a config globally and restart the user service
+    /// Install a config globally and manage the user service.
     Global {
         /// Path to the config file to install globally (optional if --setup is used)
         config_path: Option<String>,
         /// Also set up the user service file
         #[arg(short = 's', long = "setup")]
         setup: bool,
+        /// Stop the running service
+        #[arg(short = 'k', long = "kill")]
+        kill: bool,
+        /// Restart the running service
+        #[arg(short = 'r', long = "restart")]
+        restart: bool,
     },
 
-    /// Set up the systemd user service for hyde-ipc
+    /// Set up the systemd user service for hyde-ipc.
     Setup,
     // Future: Add more subcommands here!
 }

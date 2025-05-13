@@ -1,3 +1,7 @@
+//! CLI entry point and command dispatch for hyde-ipc.
+//!
+//! This module parses CLI arguments and delegates to the appropriate subcommand logic.
+
 mod dispatch;
 mod flags;
 mod keyword;
@@ -13,16 +17,16 @@ use std::fs;
 use std::path::PathBuf;
 use std::process;
 
-/// Main entry point for the hyde-ipc CLI.
-
-/// Print usage information and exit the program.
+/// Prints usage information and exits the program.
 fn print_usage_and_exit() -> ! {
     Cli::command().print_help().unwrap();
     println!();
     process::exit(1);
 }
 
-/// Main function for the hyde-ipc CLI. Delegates to subcommands.
+/// Main entry point for the hyde-ipc CLI.
+///
+/// Parses command-line arguments and dispatches to the appropriate subcommand handler.
 pub fn main() {
     let cli = Cli::parse();
 
@@ -140,7 +144,47 @@ pub fn main() {
                 process::exit(1);
             }
         }
-        Commands::Global { config_path, setup } => {
+        Commands::Global { config_path, setup, kill, restart } => {
+            if kill {
+                // Stop the running service
+                let status = std::process::Command::new("systemctl")
+                    .args(["--user", "stop", "hyde-ipc.service"])
+                    .status();
+                match status {
+                    Ok(s) if s.success() => {
+                        println!("stopped successfully.");
+                        std::process::exit(0);
+                    }
+                    Ok(s) => {
+                        eprintln!("Failed to stop global reactions (exit code: {}).", s);
+                        std::process::exit(1);
+                    }
+                    Err(e) => {
+                        eprintln!("Error stopping hyde-ipc.service: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            if restart {
+                // Restart the running service
+                let status = std::process::Command::new("systemctl")
+                    .args(["--user", "restart", "hyde-ipc.service"])
+                    .status();
+                match status {
+                    Ok(s) if s.success() => {
+                        println!("restarted successfully.");
+                        std::process::exit(0);
+                    }
+                    Ok(s) => {
+                        eprintln!("Failed to restart global reactions (exit code: {}).", s);
+                        std::process::exit(1);
+                    }
+                    Err(e) => {
+                        eprintln!("Error restarting hyde-ipc.service: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
             if setup {
                 setup::setup_service_file();
                 // If no file is given, create an empty config file
