@@ -4,6 +4,12 @@ use hyprland::dispatch::{
 };
 use hyprland::shared::Address;
 
+/// Synchronously execute a dispatcher or list available dispatchers.
+///
+/// # Arguments
+/// * `list_dispatchers` - If true, prints available dispatchers and exits.
+/// * `dispatcher` - The dispatcher to execute.
+/// * `args` - Arguments for the dispatcher.
 pub fn sync_dispatch(list_dispatchers: bool, dispatcher: String, args: Vec<String>) {
     if list_dispatchers {
         print_available_dispatchers();
@@ -22,6 +28,12 @@ pub fn sync_dispatch(list_dispatchers: bool, dispatcher: String, args: Vec<Strin
     }
 }
 
+/// Asynchronously execute a dispatcher or list available dispatchers.
+///
+/// # Arguments
+/// * `list_dispatchers` - If true, prints available dispatchers and exits.
+/// * `dispatcher` - The dispatcher to execute.
+/// * `args` - Arguments for the dispatcher.
 pub async fn async_dispatch(list_dispatchers: bool, dispatcher: String, args: Vec<String>) {
     if list_dispatchers {
         print_available_dispatchers();
@@ -43,6 +55,7 @@ pub async fn async_dispatch(list_dispatchers: bool, dispatcher: String, args: Ve
     }
 }
 
+/// Print all available dispatchers and their usage.
 fn print_available_dispatchers() {
     println!("Available dispatchers:");
     println!("  Basic commands:");
@@ -168,7 +181,7 @@ fn print_available_dispatchers() {
     println!("  hypr-rs dispatch ToggleFloating address:5934277460f0");
 }
 
-/// Parse a window identifier from a string
+/// Parse a window identifier from a string (e.g., class, title, pid, address).
 fn parse_window_identifier(identifier: &str) -> Result<WindowIdentifier<'static>, String> {
     if let Some(class) = identifier.strip_prefix("class:") {
         let class_static = Box::leak(class.to_string().into_boxed_str());
@@ -191,7 +204,15 @@ fn parse_window_identifier(identifier: &str) -> Result<WindowIdentifier<'static>
     }
 }
 
-// We use a String for program and name to avoid lifetime issues
+/// Parse a dispatcher and its arguments into a DispatchType.
+///
+/// # Arguments
+/// * `dispatcher` - The dispatcher name.
+/// * `args` - Arguments for the dispatcher.
+///
+/// # Returns
+/// * `Ok(DispatchType)` if parsing is successful.
+/// * `Err(String)` if parsing fails.
 pub fn parse_dispatcher(
     dispatcher: &str,
     args: &[String],
