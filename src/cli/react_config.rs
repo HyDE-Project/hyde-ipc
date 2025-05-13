@@ -109,15 +109,23 @@ impl fmt::Display for EventType {
     }
 }
 
-/// A reaction to a Hyprland event
+/// A reaction to a Hyprland event, which can dispatch one or more commands when triggered.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Reaction {
     /// The event type that triggers this reaction
     pub event_type: EventType,
-    /// The dispatcher to execute when the event occurs
-    pub dispatcher: String,
-    /// Arguments for the dispatcher
+    /// The dispatcher to execute when the event occurs (legacy field)
+    #[serde(default)]
+    pub dispatcher: Option<String>,
+    /// Arguments for the dispatcher (legacy field)
+    #[serde(default)]
     pub args: Vec<String>,
+    /// Sequence of dispatchers to execute
+    #[serde(default)]
+    pub dispatchers: Vec<Dispatcher>,
+    /// Window filter (e.g., "title:Google Chrome") for window events
+    #[serde(default)]
+    pub window_filter: Option<String>,
     /// Maximum number of times this reaction should trigger (0 for unlimited)
     #[serde(default)]
     pub max_count: Option<usize>,
@@ -127,8 +135,26 @@ pub struct Reaction {
     pub description: Option<String>,
 }
 
+/// A dispatcher to be executed as part of a reaction chain.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Dispatcher {
+    /// The dispatcher name
+    pub name: String,
+    /// Arguments for the dispatcher
+    #[serde(default)]
+    pub args: Vec<String>,
+}
+
 impl Reaction {
-    /// Execute this reaction
+    /// Execute this reaction and all chained dispatchers.
+    ///
+    /// # Arguments
+    /// * `count` - Shared counter for limiting reactions.
+    ///
+    /// # Returns
+    /// * `Ok(true)` if the reaction should continue.
+    /// * `Ok(false)` if the max count was reached.
+    /// * `Err(String)` if a dispatcher fails to parse.
     pub fn execute(&self, count: &Arc<AtomicUsize>) -> Result<bool, String> {
         // Check if we've reached the maximum count
         let max_count = self.max_count.unwrap_or(0);
@@ -142,19 +168,49 @@ impl Reaction {
             0
         };
 
-        // Parse the dispatcher
-        // Convert Vec<&str> to Vec<String> for compatibility with the CLI parser
-        let args_as_strings: Vec<String> = self.args.to_vec();
-        let dispatch_type = super::dispatch::parse_dispatcher(&self.dispatcher, &args_as_strings)?;
+        // Get all dispatchers to execute
+        let mut all_dispatchers = Vec::new();
+        
+        // Handle legacy format (dispatcher + args fields)
+        if let Some(dispatcher) = &self.dispatcher {
+            all_dispatchers.push(Dispatcher {
+                name: dispatcher.clone(),
+                args: self.args.clone(),
+            });
+        }
+        
+        // Add dispatchers from the new format
+        all_dispatchers.extend(self.dispatchers.clone());
+        
+        if all_dispatchers.is_empty() {
+            return Err("No dispatchers defined for this reaction".to_string());
+        }
 
         println!(
-            "Executing reaction for event {}: {} {:?}",
-            self.event_type, self.dispatcher, self.args
+            "Executing reaction for event {}: {} dispatchers",
+            self.event_type, all_dispatchers.len()
         );
 
-        // Always execute synchronously
-        if let Err(e) = Dispatch::call(dispatch_type) {
-            eprintln!("Error executing dispatcher: {}", e);
+        // Execute all dispatchers in sequence
+        for (index, dispatcher) in all_dispatchers.iter().enumerate() {
+            println!(
+                "Executing dispatcher {}/{}: {} {:?}",
+                index + 1,
+                all_dispatchers.len(),
+                dispatcher.name,
+                dispatcher.args
+            );
+            
+            match super::dispatch::parse_dispatcher(&dispatcher.name, &dispatcher.args) {
+                Ok(dispatch_type) => {
+                    if let Err(e) = Dispatch::call(dispatch_type) {
+                        eprintln!("Error executing dispatcher: {}", e);
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Error parsing dispatcher: {}", e);
+                }
+            }
         }
 
         // Return whether we should continue (i.e., haven't reached max_count)
@@ -167,27 +223,27 @@ impl Reaction {
     }
 }
 
-/// Manager for handling multiple reactions
+/// Manager for handling multiple reactions and event listeners.
 #[derive(Debug)]
 pub struct ReactionManager {
     reactions: Vec<(Reaction, Arc<AtomicUsize>)>,
 }
 
 impl ReactionManager {
-    /// Create a new reaction manager
+    /// Create a new reaction manager.
     pub fn new() -> Self {
         Self {
             reactions: Vec::new(),
         }
     }
 
-    /// Add a reaction to the manager
+    /// Add a reaction to the manager.
     pub fn add_reaction(&mut self, reaction: Reaction) {
         let counter = Arc::new(AtomicUsize::new(0));
         self.reactions.push((reaction, counter));
     }
 
-    /// Start listening for events and executing reactions
+    /// Start listening for events and executing reactions.
     pub fn start(&self) -> Result<(), String> {
         println!(
             "Starting reaction manager with {} reactions",
@@ -207,7 +263,7 @@ impl ReactionManager {
             .map_err(|e| format!("{}", e))
     }
 
-    /// Set up a handler for a specific event type
+    /// Set up a handler for a specific event type.
     fn setup_handler(
         &self,
         event_listener: &mut EventListener,
@@ -219,28 +275,71 @@ impl ReactionManager {
 
         match &reaction.event_type {
             EventType::Window(WindowEventType::Opened) => {
-                event_listener.add_window_opened_handler(move |_| {
+                event_listener.add_window_opened_handler(move |data| {
+                    // Check if we need to filter by window title or class for opened events
+                    if let Some(filter) = &reaction_clone.window_filter {
+                        if let Some(title_pattern) = filter.strip_prefix("title:") {
+                            if !data.window_title.contains(title_pattern) {
+                                return; // Skip if window title doesn't match
+                            }
+                        } else if let Some(class_pattern) = filter.strip_prefix("class:") {
+                            if !data.window_class.contains(class_pattern) {
+                                return; // Skip if window class doesn't match
+                            }
+                        }
+                    }
+                    
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
             }
             EventType::Window(WindowEventType::Closed) => {
-                event_listener.add_window_closed_handler(move |_| {
+                let has_window_filter = reaction.window_filter.is_some();
+                event_listener.add_window_closed_handler(move |_address| {
+                    // For closed window events, window filters aren't applicable
+                    if has_window_filter {
+                        println!("Note: Window filter ignored for closed events");
+                    }
+                    
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
             }
             EventType::Window(WindowEventType::Moved) => {
-                event_listener.add_window_moved_handler(move |_| {
+                let has_window_filter = reaction.window_filter.is_some();
+                event_listener.add_window_moved_handler(move |_move_data| {
+                    // For moved window events, window filters aren't applicable
+                    if has_window_filter {
+                        println!("Note: Window filter ignored for move events");
+                    }
+                    
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
             }
             EventType::Window(WindowEventType::Active) => {
-                event_listener.add_active_window_changed_handler(move |_| {
+                event_listener.add_active_window_changed_handler(move |data| {
+                    // Check if we have window data and need to filter
+                    if let Some(window_data) = data.as_ref() {
+                        if let Some(filter) = &reaction_clone.window_filter {
+                            if let Some(title_pattern) = filter.strip_prefix("title:") {
+                                if !window_data.title.contains(title_pattern) {
+                                    return; // Skip if window title doesn't match
+                                }
+                            } else if let Some(class_pattern) = filter.strip_prefix("class:") {
+                                if !window_data.class.contains(class_pattern) {
+                                    return; // Skip if window class doesn't match
+                                }
+                            }
+                        }
+                    } else if reaction_clone.window_filter.is_some() {
+                        // If we have a window filter but no window data, skip
+                        return;
+                    }
+                    
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
                         eprintln!("Error executing reaction: {}", e);
                     }
@@ -329,12 +428,15 @@ impl ReactionManager {
     }
 }
 
+/// A configuration file containing multiple reactions.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ReactConfig {
+    /// List of reactions to run
     pub reactions: Vec<Reaction>,
 }
 
 impl ReactConfig {
+    /// Load a ReactConfig from a file (JSON or TOML).
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
         let content = fs::read_to_string(path.as_ref())
             .map_err(|e| format!("Failed to read config file: {}", e))?;
@@ -360,6 +462,7 @@ impl ReactConfig {
         }
     }
 
+    /// Run all reactions in this config.
     pub fn run(&self) -> Result<(), String> {
         let mut manager = ReactionManager::new();
 
@@ -371,7 +474,7 @@ impl ReactConfig {
     }
 }
 
-/// Run reactions from a configuration file
+/// Run reactions from a configuration file.
 pub fn run_from_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
     println!("Loading reactions from {}", path.as_ref().display());
 

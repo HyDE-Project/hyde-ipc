@@ -4,9 +4,19 @@ use hyprland::event_listener::EventListener;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+/// React to Hyprland events and dispatch commands based on CLI arguments.
+///
+/// # Arguments
+/// * `event` - The event type to react to (e.g., "window").
+/// * `subtype` - Optional event subtype (e.g., "opened").
+/// * `filter` - Optional window filter (e.g., "title:foo").
+/// * `dispatcher` - The dispatcher to execute.
+/// * `args` - Arguments for the dispatcher.
+/// * `max_reactions` - Maximum number of reactions (0 for unlimited).
 pub fn sync_react(
     event: String,
     subtype: Option<String>,
+    filter: Option<String>,
     dispatcher: String,
     args: Vec<String>,
     max_reactions: usize,
@@ -15,6 +25,9 @@ pub fn sync_react(
         "Reacting to {} events with dispatcher: {}",
         event, dispatcher
     );
+    if let Some(filter) = &filter {
+        println!("Using window filter: {}", filter);
+    }
     println!("Press Ctrl+C to stop");
 
     // Parse the dispatcher once to validate it
@@ -33,6 +46,7 @@ pub fn sync_react(
         &mut event_listener,
         &event,
         &subtype,
+        &filter,
         dispatcher,
         args,
         count,
@@ -43,10 +57,23 @@ pub fn sync_react(
     event_listener.start_listener()
 }
 
+/// Set up event handlers for the specified event and subtype.
+///
+/// # Arguments
+/// * `event_listener` - The event listener to register handlers on.
+/// * `event` - The event type (e.g., "window").
+/// * `subtype` - Optional event subtype.
+/// * `filter` - Optional window filter.
+/// * `dispatcher` - The dispatcher to execute.
+/// * `args` - Arguments for the dispatcher.
+/// * `count` - Shared counter for limiting reactions.
+/// * `max_reactions` - Maximum number of reactions.
+#[allow(clippy::too_many_arguments)]
 fn setup_event_handlers(
     event_listener: &mut EventListener,
     event: &str,
     subtype: &Option<String>,
+    filter: &Option<String>,
     dispatcher: String,
     args: Vec<String>,
     count: Arc<AtomicUsize>,
@@ -60,7 +87,21 @@ fn setup_event_handlers(
                         let dispatcher_clone = dispatcher.clone();
                         let args_clone = args.clone();
                         let count_clone = Arc::clone(&count);
-                        event_listener.add_window_opened_handler(move |_| {
+                        let filter_clone = filter.clone();
+                        event_listener.add_window_opened_handler(move |data| {
+                            // Check if we have a window filter
+                            if let Some(window_filter) = &filter_clone {
+                                if let Some(title_pattern) = window_filter.strip_prefix("title:") {
+                                    if !data.window_title.contains(title_pattern) {
+                                        return; // Skip if window title doesn't match
+                                    }
+                                } else if let Some(class_pattern) = window_filter.strip_prefix("class:") {
+                                    if !data.window_class.contains(class_pattern) {
+                                        return; // Skip if window class doesn't match
+                                    }
+                                }
+                            }
+                            
                             handle_event(
                                 &dispatcher_clone,
                                 &args_clone,
@@ -99,7 +140,26 @@ fn setup_event_handlers(
                         let dispatcher_clone = dispatcher.clone();
                         let args_clone = args.clone();
                         let count_clone = Arc::clone(&count);
-                        event_listener.add_active_window_changed_handler(move |_| {
+                        let filter_clone = filter.clone();
+                        event_listener.add_active_window_changed_handler(move |data| {
+                            // Check if we have window data and a window filter
+                            if let Some(window_data) = data.as_ref() {
+                                if let Some(window_filter) = &filter_clone {
+                                    if let Some(title_pattern) = window_filter.strip_prefix("title:") {
+                                        if !window_data.title.contains(title_pattern) {
+                                            return; // Skip if window title doesn't match
+                                        }
+                                    } else if let Some(class_pattern) = window_filter.strip_prefix("class:") {
+                                        if !window_data.class.contains(class_pattern) {
+                                            return; // Skip if window class doesn't match
+                                        }
+                                    }
+                                }
+                            } else if filter_clone.is_some() {
+                                // If we have a window filter but no window data, skip
+                                return;
+                            }
+                            
                             handle_event(
                                 &dispatcher_clone,
                                 &args_clone,
@@ -121,7 +181,21 @@ fn setup_event_handlers(
                 let dispatcher_clone = dispatcher.clone();
                 let args_clone = args.clone();
                 let count_clone = Arc::clone(&count);
-                event_listener.add_window_opened_handler(move |_| {
+                let filter_clone = filter.clone();
+                event_listener.add_window_opened_handler(move |data| {
+                    // Check if we have a window filter
+                    if let Some(window_filter) = &filter_clone {
+                        if let Some(title_pattern) = window_filter.strip_prefix("title:") {
+                            if !data.window_title.contains(title_pattern) {
+                                return; // Skip if window title doesn't match
+                            }
+                        } else if let Some(class_pattern) = window_filter.strip_prefix("class:") {
+                            if !data.window_class.contains(class_pattern) {
+                                return; // Skip if window class doesn't match
+                            }
+                        }
+                    }
+                    
                     handle_event(&dispatcher_clone, &args_clone, &count_clone, max_reactions);
                 });
 
@@ -129,6 +203,7 @@ fn setup_event_handlers(
                 let args_clone = args.clone();
                 let count_clone = Arc::clone(&count);
                 event_listener.add_window_closed_handler(move |_| {
+                    // For closed windows, we don't have title/class info, so no filtering
                     handle_event(&dispatcher_clone, &args_clone, &count_clone, max_reactions);
                 });
 
@@ -136,13 +211,33 @@ fn setup_event_handlers(
                 let args_clone = args.clone();
                 let count_clone = Arc::clone(&count);
                 event_listener.add_window_moved_handler(move |_| {
+                    // For window move events, we could match on window_address, but will skip for simplicity
                     handle_event(&dispatcher_clone, &args_clone, &count_clone, max_reactions);
                 });
 
                 let dispatcher_clone = dispatcher.clone();
                 let args_clone = args.clone();
                 let count_clone = Arc::clone(&count);
-                event_listener.add_active_window_changed_handler(move |_| {
+                let filter_clone = filter.clone();
+                event_listener.add_active_window_changed_handler(move |data| {
+                    // Check if we have window data and a window filter
+                    if let Some(window_data) = data.as_ref() {
+                        if let Some(window_filter) = &filter_clone {
+                            if let Some(title_pattern) = window_filter.strip_prefix("title:") {
+                                if !window_data.title.contains(title_pattern) {
+                                    return; // Skip if window title doesn't match
+                                }
+                            } else if let Some(class_pattern) = window_filter.strip_prefix("class:") {
+                                if !window_data.class.contains(class_pattern) {
+                                    return; // Skip if window class doesn't match
+                                }
+                            }
+                        }
+                    } else if filter_clone.is_some() {
+                        // If we have a window filter but no window data, skip
+                        return;
+                    }
+                    
                     handle_event(&dispatcher_clone, &args_clone, &count_clone, max_reactions);
                 });
             }

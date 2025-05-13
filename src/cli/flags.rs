@@ -1,12 +1,15 @@
 use clap::{ArgGroup, Parser, Subcommand};
 
+/// Command-line interface for hyde-ipc.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
+    /// The subcommand to execute
     #[command(subcommand)]
     pub command: Commands,
 }
 
+/// All supported subcommands for hyde-ipc.
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     /// Get or set a keyword
@@ -94,6 +97,10 @@ pub enum Commands {
         /// Event subtype for more specific filtering (e.g., "opened" for window events)
         #[arg(short = 's', long = "subtype")]
         subtype: Option<String>,
+        
+        /// Window filter for window events (e.g., "title:Google Chrome" or "class:firefox")
+        #[arg(short = 'f', long = "filter")]
+        filter: Option<String>,
 
         /// Dispatcher command to execute when the event occurs
         #[arg(short = 'd', long = "dispatch", required_unless_present = "config")]

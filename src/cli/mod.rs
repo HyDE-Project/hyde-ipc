@@ -13,12 +13,16 @@ use std::fs;
 use std::path::PathBuf;
 use std::process;
 
+/// Main entry point for the hyde-ipc CLI.
+
+/// Print usage information and exit the program.
 fn print_usage_and_exit() -> ! {
     Cli::command().print_help().unwrap();
     println!();
     process::exit(1);
 }
 
+/// Main function for the hyde-ipc CLI. Delegates to subcommands.
 pub fn main() {
     let cli = Cli::parse();
 
@@ -105,6 +109,7 @@ pub fn main() {
             inline: _,
             event,
             subtype,
+            filter,
             dispatcher,
             args,
             max_reactions,
@@ -130,7 +135,7 @@ pub fn main() {
             if r#async {
                 println!("Note: async flag is deprecated");
             }
-            if let Err(e) = react::sync_react(event, subtype, dispatcher, args, max_reactions) {
+            if let Err(e) = react::sync_react(event, subtype, filter, dispatcher, args, max_reactions) {
                 eprintln!("Error: {}", e);
                 process::exit(1);
             }
