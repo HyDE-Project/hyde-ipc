@@ -1,6 +1,6 @@
 use hyprland::dispatch::{
     Corner, CycleDirection, Direction, Dispatch, DispatchType, FullscreenType, WindowIdentifier,
-    WorkspaceIdentifierWithSpecial,
+    WorkspaceIdentifierWithSpecial, Position,
 };
 use hyprland::shared::Address;
 
@@ -351,6 +351,46 @@ pub fn parse_dispatcher(
         "FocusCurrentOrLast" => Ok(DispatchType::FocusCurrentOrLast),
         "ForceRendererReload" => Ok(DispatchType::ForceRendererReload),
         "Exit" => Ok(DispatchType::Exit),
+        "ResizeActive" => {
+            if args.is_empty() {
+                return Err("ResizeActive requires a position argument: either <dx> <dy> or exact <width> <height>".to_string());
+            }
+            if args[0] == "exact" {
+                if args.len() != 3 {
+                    return Err("ResizeActive exact requires two arguments: <width> <height>".to_string());
+                }
+                let width = args[1].parse::<i16>().map_err(|_| format!("Invalid width: {}", args[1]))?;
+                let height = args[2].parse::<i16>().map_err(|_| format!("Invalid height: {}", args[2]))?;
+                Ok(DispatchType::ResizeActive(Position::Exact(width, height)))
+            } else if args.len() == 2 {
+                let dx = args[0].parse::<i16>().map_err(|_| format!("Invalid dx: {}", args[0]))?;
+                let dy = args[1].parse::<i16>().map_err(|_| format!("Invalid dy: {}", args[1]))?;
+                Ok(DispatchType::ResizeActive(Position::Delta(dx, dy)))
+            } else {
+                Err("ResizeActive requires either two arguments (<dx> <dy>) or 'exact <width> <height>'".to_string())
+            }
+        }
+        "ResizeWindowPixel" => {
+            if args.is_empty() {
+                return Err("ResizeWindowPixel requires a position and window argument: either <dx> <dy> <win> or exact <width> <height> <win>".to_string());
+            }
+            if args[0] == "exact" {
+                if args.len() != 4 {
+                    return Err("ResizeWindowPixel exact requires three arguments: <width> <height> <win>".to_string());
+                }
+                let width = args[1].parse::<i16>().map_err(|_| format!("Invalid width: {}", args[1]))?;
+                let height = args[2].parse::<i16>().map_err(|_| format!("Invalid height: {}", args[2]))?;
+                let win_id = parse_window_identifier(&args[3])?;
+                Ok(DispatchType::ResizeWindowPixel(Position::Exact(width, height), win_id))
+            } else if args.len() == 3 {
+                let dx = args[0].parse::<i16>().map_err(|_| format!("Invalid dx: {}", args[0]))?;
+                let dy = args[1].parse::<i16>().map_err(|_| format!("Invalid dy: {}", args[1]))?;
+                let win_id = parse_window_identifier(&args[2])?;
+                Ok(DispatchType::ResizeWindowPixel(Position::Delta(dx, dy), win_id))
+            } else {
+                Err("ResizeWindowPixel requires either three arguments (<dx> <dy> <win>) or 'exact <width> <height> <win>'".to_string())
+            }
+        }
         _ => Err(format!("Unknown dispatcher: {}", dispatcher)),
     }
 }
