@@ -8,7 +8,7 @@ INSTALL_DIR = /usr/bin
 .DEFAULT_GOAL := release
 
 release: clean
-	@cargo build --release
+	@cargo build --frozen --release
 	@mkdir -p $(BIN_DIR)
 	@cp $(REL_TGT) $(BIN_DIR)/$(BIN_NAME)
 	@echo "Built release -> $(BIN_DIR)/$(BIN_NAME)"
