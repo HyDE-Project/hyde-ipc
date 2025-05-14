@@ -1,118 +1,211 @@
-name: Build and Release
-
-on:
-  push:
-    tags:
-      - "v*"
+name: "Build & Release"
 
 permissions:
   contents: write
 
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        description: "Version: (e.g. -> v3.1.4-alpha+159)"
+      release_type:
+        type: choice
+        default: none
+        options:
+          - none
+          - patch
+          - minor
+          - major
+      overwrite_tag:
+        type: boolean
+        default: false
+
 jobs:
-  build-linux:
-    name: Build Linux Binary
+  get-version:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Fetch Repository
         uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Install jql
+        if: ${{ !inputs.version }}
+        uses: taiki-e/install-action@v2
         with:
-          toolchain: stable
-          override: true
-          profile: minimal
-
-      - name: Build release binary
-        uses: actions-rs/cargo@v1
+          tool: jql
+      - name: Install cargo-bump
+        if: ${{ !inputs.version }}
+        uses: taiki-e/install-action@v2
         with:
-          command: build
-          args: --release
-
-      - name: Create archive
+          tool: cargo-bump
+      - name: Versions using None
+        id: none_version
+        if: ${{ !inputs.version && inputs.release_type == 'none' }}
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          mkdir -p release
-          cp target/release/hyde-ipc release/
-          cd release
-          tar -czvf hyde-ipc-${VERSION}-linux-x86_64.tar.gz hyde-ipc
-          cd ..
+          version=$(cargo metadata --format-version=1 --no-deps | jql '"packages"|>"version"<|[0]' --raw-string);
+          echo $version;
+          echo "crate_version=$version" >> "$GITHUB_OUTPUT";
+          normal_version=v$version
+          echo $normal_version;
+          echo "tag_version=$normal_version" >> "$GITHUB_OUTPUT";
+      - name: Versions using release_type
+        id: new_version
+        if: ${{ !inputs.version && inputs.release_type != 'none' }}
+        run: |
+          cargo bump ${{ inputs.release_type }};
+          version=$(cargo metadata --format-version=1 --no-deps | jql '"packages"|>"version"<|[0]' --raw-string);
+          echo $version;
+          echo "crate_version=$version" >> "$GITHUB_OUTPUT";
+          normal_version=v$version
+          echo $normal_version;
+          echo "tag_version=$normal_version" >> "$GITHUB_OUTPUT";
+      - name: Versions using tag
+        id: full_version
+        if: inputs.version
+        run: |
+          tag=${{inputs.version}};
+          echo $tag;
+          echo "crate_version=${tag##v}" >> "$GITHUB_OUTPUT";
+          echo ${tag##v};
+    outputs:
+      new_tag_version: ${{ inputs.version || steps.new_version.outputs.tag_version || steps.none_version.outputs.tag_version }}
+      new_crate_version: ${{ steps.full_version.outputs.crate_version || steps.new_version.outputs.crate_version || steps.none_version.outputs.crate_version }}
 
-      - name: Upload binary to release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            release/hyde-ipc-*-linux-x86_64.tar.gz
-          generate_release_notes: true
-
-  build-macos-intel:
-    name: Build macOS Intel Binary
-    runs-on: macos-latest
+  bump-version:
+    needs: get-version
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          profile: minimal
-          target: x86_64-apple-darwin
-
-      - name: Build release binary
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target x86_64-apple-darwin
-
-      - name: Create archive
+      - uses: actions/checkout@v4
+      - name: Bump version in Cargo.toml
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          mkdir -p release
-          cp target/x86_64-apple-darwin/release/hyde-ipc release/
-          cd release
-          tar -czvf hyde-ipc-${VERSION}-macos-x86_64.tar.gz hyde-ipc
-          cd ..
+          if [ -n "${{ needs.get-version.outputs.new_crate_version }}" ]; then
+            sed -i "s/^version = .*/version = \"${{ needs.get-version.outputs.new_crate_version }}\"/" Cargo.toml
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add Cargo.toml
+            git commit -m "chore: bump version to ${{ needs.get-version.outputs.new_crate_version }}"
+            git push
+          fi
 
-      - name: Upload binary to release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            release/hyde-ipc-*-macos-x86_64.tar.gz
-
-  build-macos-arm:
-    name: Build macOS Apple Silicon Binary
-    runs-on: macos-latest
+  create-tag:
+    needs: [get-version, bump-version]
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Fetch Repository
         uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+      - run: git pull
+      - uses: mukunku/tag-exists-action@v1.6.0
+        if: ${{ inputs.overwrite_tag }}
+        id: check-tag-overwrite
         with:
-          toolchain: stable
-          override: true
-          profile: minimal
-          target: aarch64-apple-darwin
-
-      - name: Build release binary
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target aarch64-apple-darwin
-
-      - name: Create archive
+          tag: ${{  needs.get-version.outputs.new_tag_version }}
+      - name: Delete tag
+        if: ${{ steps.check-tag-overwrite.outputs.exists == 'true' }}
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          mkdir -p release
-          cp target/aarch64-apple-darwin/release/hyde-ipc release/
-          cd release
-          tar -czvf hyde-ipc-${VERSION}-macos-arm64.tar.gz hyde-ipc
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git fetch --tags
+          git tag -d ${{ needs.get-version.outputs.new_tag_version }}
+          git push -d origin ${{  needs.get-version.outputs.new_tag_version }}
+      - uses: mukunku/tag-exists-action@v1.6.0
+        id: check-tag
+        with:
+          tag: ${{ needs.get-version.outputs.new_tag_version}}
+      - name: Create tag
+        if: steps.check-tag.outputs.exists == 'false'
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git tag ${{ needs.get-version.outputs.new_tag_version}} -m "Release ${{ needs.get-version.outputs.new_tag_version}}"
+          git push origin ${{  needs.get-version.outputs.new_tag_version}}
+
+  create-release:
+    needs: [get-version, create-tag]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v4
+      - uses: taiki-e/create-gh-release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          changelog: CHANGELOG.md
+          allow-missing-changelog: true
+          ref: refs/tags/${{ needs.get-version.outputs.new_tag_version }}
+
+  build-and-release:
+    needs: [get-version, create-release]
+    name: ${{ matrix.target }} (Linux)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-gnu, cross: false, arch: x86_64 }
+          - { target: aarch64-unknown-linux-gnu, cross: true, arch: aarch64 }
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.get-version.outputs.new_tag_version }}
+      - name: Install stable toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: ${{ matrix.target }}
+      - name: Install cross-compilation tools
+        if: ${{ matrix.cross == true }}
+        uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: ${{ matrix.target }}
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Create archive and internal checksums
+        run: |
+          mkdir -p "hyde-ipc-${{ needs.get-version.outputs.new_crate_version }}-linux-${{ matrix.arch }}"
+
+          cp "target/${{ matrix.target }}/release/hyde-ipc" "hyde-ipc-${{ needs.get-version.outputs.new_crate_version }}-linux-${{ matrix.arch }}/"
+          cp LICENSE README.md "hyde-ipc-${{ needs.get-version.outputs.new_crate_version }}-linux-${{ matrix.arch }}/" || echo "Note: LICENSE and/or README.md files might be missing"
+
+          cd "hyde-ipc-${{ needs.get-version.outputs.new_crate_version }}-linux-${{ matrix.arch }}"
+          sha256sum hyde-ipc LICENSE README.md > SHA256SUMS 2>/dev/null || true
           cd ..
 
-      - name: Upload binary to release
+          tar -czvf "hyde-ipc-${{ needs.get-version.outputs.new_crate_version }}-linux-${{ matrix.arch }}.tar.gz" "hyde-ipc-${{ needs.get-version.outputs.new_crate_version }}-linux-${{ matrix.arch }}"
+
+          sha256sum "hyde-ipc-${{ needs.get-version.outputs.new_crate_version }}-linux-${{ matrix.arch }}.tar.gz" >> checksums-${{ needs.get-version.outputs.new_crate_version }}.txt
+
+      - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            release/hyde-ipc-*-macos-arm64.tar.gz
+          files: hyde-ipc-${{ needs.get-version.outputs.new_crate_version }}-linux-${{ matrix.arch }}.tar.gz
+          tag_name: ${{ needs.get-version.outputs.new_tag_version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums-${{ matrix.arch }}
+          path: checksums-${{ needs.get-version.outputs.new_crate_version }}.txt
+          retention-days: 1
+
+  upload-checksums:
+    needs: [get-version, build-and-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Checksums
+        uses: actions/download-artifact@v4
+        with:
+          pattern: checksums-*
+          merge-multiple: true
+
+      - name: Sort and Format Checksums
+        run: |
+          cat checksums-${{ needs.get-version.outputs.new_crate_version }}.txt | sort > final-checksums.txt
+          mv final-checksums.txt checksums.txt
+
+      - name: Upload Checksums File
+        uses: softprops/action-gh-release@v1
+        with:
+          files: checksums.txt
+          tag_name: ${{ needs.get-version.outputs.new_tag_version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
