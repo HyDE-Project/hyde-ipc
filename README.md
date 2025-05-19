@@ -1,74 +1,84 @@
-# hyde-ipc
+# HyDE-IPC: Rust Bindings & CLI for Hyprland IPC
+
+[![Made for Hyprland](https://img.shields.io/badge/Made%20for-Hyprland-blue)](https://github.com/hyprwm/Hyprland)
+[![License: MIT](https://img.shields.io/badge/License-MIT.svg)](./LICENSE)
+
+**hyde-ipc** is a Rust Implementation for interacting with the [Hyprland](https://github.com/hyprwm/Hyprland) via its IPC interface. `hyde-ipc` enables you to control Hyprland, monitor events, and automate your workflow with a flexible reaction system using `toml` config files.
+
+---
+
+## Features
+
+- **Event Listening:** Listen and react to Hyprland events in real time.
+- **Reactive Event System:** Automate reactions to Hyprland events using TOML/JSON configs.
+- **Fast Native Dispatchers:** Native and non-blocking Rust implementations for many dispatchers faster than shelling out!
+- **Flexible CLI:** Scriptable, async, and supports advanced low-level automation.
 
 ## install
 
-### clone
+### Archlinux
+
+hyde-ipc is pushed to [AUR](https://aur.archlinux.org/packages/hyde-ipc)
+
+```bash
+yay -S hyde-ipc-bin         # perbuilt binaries
+# or
+yay -S hyde-ipc             # Build from source
+```
+
+### clone and build
+
+Makefile defaults to a system wide install
 
 ```bash
 git  clone --depth 1 https://github.com/HyDE-Project/hyde-ipc.git
 cd hyde-ipc
-
+make
 ```
 
-### build
+or use `cargo` for local build
 
 ```bash
-
-cargo build
-
-mkdir -p ./bin
-cp ./target/debug/hyde-ipc ./bin
-
-```
-
-or using cargo make (if installed)
-
-```bash
-
-cargo make
-
+git  clone --depth 1 https://github.com/HyDE-Project/hyde-ipc.git
+cd hyde-ipc
+cargo build --frozen
 ```
 
 ## usage
 
+hyde-ipc includes 4
+
 ```bash
-
-hyde-ipc --help
-
+hydeipc <Command> <options>
 ```
 
-### keyword
+### `hyprpland` configuration Management (Keywords)
 
 ```bash
 
-hyde-ipc --keyword --help
+hyde-ipc keyword --help
 
-## to get a hyprland keyword (empy output means not set)
+# for example to get the blur size of your current config
 
 hyde-ipc keyword --get --async decoration:blur:size
+#or
+hyde-ipc keyword -g -a decoration:blur:size
 
-## set a keyword
+and to set it to 8
 
-hyde-ipc keyword -s -a decoration:blur:passes 10
+hyde-ipc keyword --set --async decoration:blur:size 8
 
 ```
 
-### Listen
+### Event Listening
 
-Listen for and log Hyprland events.
-
-Options:
-
--f, --filter <FILTER>: Filter events by type (e.g., "window", "workspace")
--n, --max-events <MAX_EVENTS>
--j, --json: Use JSON format for output (NOT TESTED YET!)
+Listen for and log Hyprland events:
 
 ```bash
-
 hyde-ipc listen
 
+# or with more options
 hypr-rs listen --filter window --max-events 5 --json
-
 ```
 
 > [!NOTE]
@@ -76,38 +86,99 @@ hypr-rs listen --filter window --max-events 5 --json
 
 ### Dispatch
 
-Execute a Hyprland dispatcher command.
+Execute a Hyprland dispatcher (event)
 
 ```bash
 
-hyde-ipc dispatch [OPTIONS] [DISPATCHER] [ARGS]...
+
+#for example to toggle floating mode for the active window
+hyde-ipc dispatch ToggleFloating
+
+# or to focus a window an specific window
+hyde-ipc dispatch --async FocusWindow "title:^(Terminal)$"
 
 ```
 
 > [!NOTE]
-> dispatching hyde-ipc nativly supported dispatchers are WAYYY faster than default dispatching. Use native ones unless you have a good reason not to!
+> Native dispatchers are faster than shelling out to `hyprctl`. Use them whenever possible!
 
-all hyprland `Dispatchers` are not natively supported yet.
+all hyprland `Dispatchers` are NOT natively supported yet.
 
-please ignore the ones provided by `hyprland-rs` and rely on list below.
-
-non-native supported doesn't mean they don't work, it means they are at best as fast as hyprlnad!
-Nativeones are faster especially when used in `async` mode (Rust btw)
+You can get the list of available dispatchers and more usage examples by running:
 
 ```bash
-
 hyde-ipc dispatch --list-dispatchers
+# or
+hyde-ipc dispatch -l
 
 ```
 
-#### examples
+### Automation and `react` Command
+
+You can use `react` command to listen for an specific event and dispatch an event (execute a command) as a reaction to the event.
+
+In this simple example, we toggle floating for any window when it opens.
 
 ```bash
+hyde-ipc react -i --event window --subtype opened --dispatch ToggleFloating
+```
 
-# Toggle floating mode for the active window
-hyde-itc dispatch ToggleFloating
+#### react configuration files
+
+for more control over automation you can use `toml` config files including `reaction` instructions . with `react` command.
+
+a simple example to get notified when a window's state is changed to float :
+
+```toml
+[[reactions]]
+
+event_type = "Float"
+dispatcher = "Exec"
+args = ["notify-send", "Float Toggled"]
 
 ```
+
+you can filter events down, and also chain dispatchers that are triggered by the event.
+For example, in below toml file, we set alacritty mode to float and resize it to 800x600 and center it when it opens.
+
+```toml
+# my-reaction.toml
+[[reactions]]
+event_type = { Window = "Opened" }
+window_filter = "class:Alacritty"
+dispatchers = [
+  { name = "FocusWindow", args = ["class:Alacritty"] },
+  { name = "ToggleFloating" },
+  { name = "ResizeActive", args = ["exact", "800", "600"] },
+  { name = "CenterWindow" }
+]
+```
+
+you can source the file by running:
+
+```bash
+hyde-ipc react -c ./path/to/my-reaction.toml
+```
+
+TODO explain optional fields in toml configs
+
+#### global configuration file.
+
+to have a global config file and have it sourced by default you can run:
+
+```bash
+# make sure you run the setup once after hyde-ipc is installed
+hyde-ipc global --setup
+
+# then you can source a toml file as global config
+hyde-ipc global ./path/to/my-reaction.toml
+
+# and to stop the global automation run
+hyde-ipc global --kill
+
+```
+
+#### More examples
 
 ```bash
 
@@ -133,29 +204,7 @@ hyde-ipc dispatch ToggleFloating "address:0x12345678"
 
 ```
 
-## React
-
-React is the big deal about this project.
-
-```bash
-hyde-ipc react [OPTIONS]
-```
-
-**Options:**
-
-- `-a, --async`: Use async mode
-- `-c, --config <FILE>`: Use a config file to define multiple reactions
-- `-t, --create-template <FILE>`: Create a new config file template
-- `-i, --inline`: Use inline mode (single reaction)
-- `-e, --event <EVENT>`: Event type to react to (e.g., "window", "workspace")
-- `-s, --subtype <SUBTYPE>`: Event subtype for more specific filtering (e.g., "opened" for window events)
-- `-d, --dispatch <DISPATCHER>`: Dispatcher command to execute when the event occurs
-- `-p, --params <ARGS>...`: Arguments for the dispatcher
-- `-n, --max-reactions <MAX_REACTIONS>`: Limit number of reactions (0 for unlimited)
-
-### React Examples
-
-**Execute a notification command when a window becomes floating:**
+React Examples
 
 ```bash
 # Show a notification when a window's float state changes
@@ -169,17 +218,7 @@ hypr-ipc react --event float --dispatch Exec --params "notify-send 'Float State 
 hypr-ipc react --event window --subtype opened --dispatch Workspace --params 1 --max-reactions 3
 ```
 
-## Automation :: Configuration files
-
-Configuration files allow you to define multiple reactions in a single file, which can then be loaded with a single command. This is more efficient than running multiple separate processes
-
-```bash
-
-hyde-ipc react --config ./path/to/config.toml
-
-```
-
-### Examples
+More configuration examples,
 
 this exmaple reacts to float state changes:
 

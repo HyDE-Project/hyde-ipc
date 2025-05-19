@@ -1,5 +1,4 @@
-//!  Delegates to cli::main()
-//TODO: add --version
+//!  Delegates to cli::main() //TODO: add --version
 mod cli;
 
 fn main() {
