@@ -1,6 +1,6 @@
 use hyprland::dispatch::{
-    Corner, CycleDirection, Direction, Dispatch, DispatchType, FullscreenType, WindowIdentifier,
-    WorkspaceIdentifierWithSpecial, Position,
+    Corner, CycleDirection, Direction, Dispatch, DispatchType, FullscreenType, Position,
+    WindowIdentifier, WorkspaceIdentifierWithSpecial,
 };
 use hyprland::shared::Address;
 
@@ -56,129 +56,358 @@ pub async fn async_dispatch(list_dispatchers: bool, dispatcher: String, args: Ve
 }
 
 /// Print all available dispatchers and their usage.
+struct Dispatcher {
+    name: &'static str,
+    description: &'static str,
+}
+
+struct DispatcherCategory {
+    name: &'static str,
+    dispatchers: Vec<Dispatcher>,
+}
+
 fn print_available_dispatchers() {
+    let categories = vec![
+        DispatcherCategory {
+            name: "Basic commands",
+            dispatchers: vec![
+                Dispatcher {
+                    name: "Exec <command>",
+                    description: "Execute a command",
+                },
+                Dispatcher {
+                    name: "KillActiveWindow",
+                    description: "Kill the active window",
+                },
+                Dispatcher {
+                    name: "Exit",
+                    description: "Exit Hyprland",
+                },
+                Dispatcher {
+                    name: "ForceRendererReload",
+                    description: "Force the renderer to reload",
+                },
+            ],
+        },
+        DispatcherCategory {
+            name: "Window management",
+            dispatchers: vec![
+                Dispatcher {
+                    name: "ToggleFloating [window]",
+                    description: "Toggle floating mode for a window",
+                },
+                Dispatcher {
+                    name: "ToggleFullscreen <type>",
+                    description: "Toggle fullscreen mode (Real, Maximize, NoParam)",
+                },
+                Dispatcher {
+                    name: "ToggleFakeFullscreen",
+                    description: "Toggle fake fullscreen for the active window",
+                },
+                Dispatcher {
+                    name: "TogglePseudo",
+                    description: "Toggle pseudo tiling for the active window",
+                },
+                Dispatcher {
+                    name: "TogglePin",
+                    description: "Pin the active window to all workspaces",
+                },
+                Dispatcher {
+                    name: "ToggleOpaque",
+                    description: "Toggle opacity for the active window",
+                },
+                Dispatcher {
+                    name: "CenterWindow",
+                    description: "Center the active window",
+                },
+                Dispatcher {
+                    name: "BringActiveToTop",
+                    description: "Bring the active window to the top of the stack",
+                },
+            ],
+        },
+        DispatcherCategory {
+            name: "Focus control",
+            dispatchers: vec![
+                Dispatcher {
+                    name: "MoveFocus <direction>",
+                    description: "Move focus in a direction (Up, Down, Left, Right)",
+                },
+                Dispatcher {
+                    name: "FocusWindow <window>",
+                    description: "Focus a specific window",
+                },
+                Dispatcher {
+                    name: "FocusMonitor <identifier>",
+                    description: "Focus a specific monitor",
+                },
+                Dispatcher {
+                    name: "FocusUrgentOrLast",
+                    description: "Focus the urgent window or the last one",
+                },
+                Dispatcher {
+                    name: "FocusCurrentOrLast",
+                    description: "Switch focus between current and last window",
+                },
+            ],
+        },
+        DispatcherCategory {
+            name: "Window movement",
+            dispatchers: vec![
+                Dispatcher {
+                    name: "MoveWindow <direction>",
+                    description: "Move window in a direction",
+                },
+                Dispatcher {
+                    name: "MoveActive <position>",
+                    description: "Move the active window to a position",
+                },
+                Dispatcher {
+                    name: "MoveWindowPixel <position> <win>",
+                    description: "Move a specific window to a position",
+                },
+                Dispatcher {
+                    name: "ResizeActive <position>",
+                    description: "Resize the active window",
+                },
+                Dispatcher {
+                    name: "ResizeWindowPixel <pos> <win>",
+                    description: "Resize a specific window",
+                },
+            ],
+        },
+        DispatcherCategory {
+            name: "Workspace management",
+            dispatchers: vec![
+                Dispatcher {
+                    name: "Workspace <workspace>",
+                    description: "Switch to workspace (number, previous, empty, name:NAME)",
+                },
+                Dispatcher {
+                    name: "MoveToWorkspace <workspace>",
+                    description: "Move window to workspace",
+                },
+                Dispatcher {
+                    name: "MoveToWorkspaceSilent <workspace>",
+                    description: "Move window to workspace without switching to it",
+                },
+                Dispatcher {
+                    name: "RenameWorkspace <id> <name>",
+                    description: "Rename a workspace",
+                },
+            ],
+        },
+        DispatcherCategory {
+            name: "Cycling and swapping",
+            dispatchers: vec![
+                Dispatcher {
+                    name: "CycleWindow <direction>",
+                    description: "Cycle windows (Next, Previous)",
+                },
+                Dispatcher {
+                    name: "SwapNext <direction>",
+                    description: "Swap with next window (Next, Previous)",
+                },
+                Dispatcher {
+                    name: "SwapWindow <direction>",
+                    description: "Swap windows in a direction (Up, Down, Left, Right)",
+                },
+            ],
+        },
+        DispatcherCategory {
+            name: "Cursor control",
+            dispatchers: vec![
+                Dispatcher {
+                    name: "MoveCursorToCorner <corner>",
+                    description: "Move cursor to a corner (TopLeft, TopRight, BottomLeft, BottomRight)",
+                },
+                Dispatcher {
+                    name: "MoveCursor <x> <y>",
+                    description: "Move cursor to a position",
+                },
+                Dispatcher {
+                    name: "SetCursor <theme> <size>",
+                    description: "Set cursor theme and size",
+                },
+            ],
+        },
+        DispatcherCategory {
+            name: "Monitor management",
+            dispatchers: vec![
+                Dispatcher {
+                    name: "MoveCurrentWorkspaceToMonitor <mon>",
+                    description: "Move current workspace to a monitor",
+                },
+                Dispatcher {
+                    name: "MoveWorkspaceToMonitor <ws> <mon>",
+                    description: "Move a workspace to a monitor",
+                },
+                Dispatcher {
+                    name: "SwapActiveWorkspaces <mon1> <mon2>",
+                    description: "Swap active workspaces of two monitors",
+                },
+                Dispatcher {
+                    name: "ToggleDPMS <on/off> [monitor]",
+                    description: "Toggle DPMS status for monitors",
+                },
+            ],
+        },
+        DispatcherCategory {
+            name: "Layout-specific commands (Dwindle)",
+            dispatchers: vec![Dispatcher {
+                name: "ToggleSplit",
+                description: "Toggle the split orientation",
+            }],
+        },
+        DispatcherCategory {
+            name: "Layout-specific commands (Master)",
+            dispatchers: vec![
+                Dispatcher {
+                    name: "SwapWithMaster <param>",
+                    description: "Swap with master window (Master, Child, Auto)",
+                },
+                Dispatcher {
+                    name: "FocusMaster <param>",
+                    description: "Focus the master window (Master, Auto)",
+                },
+                Dispatcher {
+                    name: "AddMaster",
+                    description: "Add a master to the master side",
+                },
+                Dispatcher {
+                    name: "RemoveMaster",
+                    description: "Remove a master from the master side",
+                },
+                Dispatcher {
+                    name: "OrientationLeft",
+                    description: "Set orientation to left",
+                },
+                Dispatcher {
+                    name: "OrientationRight",
+                    description: "Set orientation to right",
+                },
+                Dispatcher {
+                    name: "OrientationTop",
+                    description: "Set orientation to top",
+                },
+                Dispatcher {
+                    name: "OrientationBottom",
+                    description: "Set orientation to bottom",
+                },
+                Dispatcher {
+                    name: "OrientationCenter",
+                    description: "Set orientation to center",
+                },
+                Dispatcher {
+                    name: "OrientationNext",
+                    description: "Cycle to next orientation",
+                },
+                Dispatcher {
+                    name: "OrientationPrev",
+                    description: "Cycle to previous orientation",
+                },
+            ],
+        },
+        DispatcherCategory {
+            name: "Window grouping",
+            dispatchers: vec![
+                Dispatcher {
+                    name: "ToggleGroup",
+                    description: "Toggle the current window into a group",
+                },
+                Dispatcher {
+                    name: "ChangeGroupActive <direction>",
+                    description: "Switch to next window in group (Forward, Back)",
+                },
+                Dispatcher {
+                    name: "LockGroups <action>",
+                    description: "Lock groups (Lock, Unlock, ToggleLock)",
+                },
+                Dispatcher {
+                    name: "MoveIntoGroup <direction>",
+                    description: "Move window into group in direction",
+                },
+                Dispatcher {
+                    name: "MoveOutOfGroup",
+                    description: "Move window out of group",
+                },
+            ],
+        },
+    ];
+
+    let identifiers = vec![
+        Dispatcher {
+            name: "class:REGEX",
+            description: "Match window by class regex",
+        },
+        Dispatcher {
+            name: "title:REGEX",
+            description: "Match window by title regex",
+        },
+        Dispatcher {
+            name: "pid:PID",
+            description: "Match window by process ID",
+        },
+        Dispatcher {
+            name: "address:ADDR",
+            description: "Match window by address (hex value, with or without 0x prefix)",
+        },
+    ];
+
+    let examples = vec![
+        "hypr-rs dispatch Exec \"kitty\"",
+        "hypr-rs dispatch MoveCursorToCorner TopLeft",
+        "hypr-rs dispatch Workspace 1",
+        "hypr-rs dispatch --async ToggleFullscreen Maximize",
+        "hypr-rs dispatch CycleWindow Next",
+        "hypr-rs dispatch MoveFocus Right",
+        "hypr-rs dispatch ToggleFloating \"class:^(Google-chrome)$\"",
+        "hypr-rs dispatch FocusWindow \"title:^(.*Terminal.*)$\"",
+        "hypr-rs dispatch ToggleFloating address:5934277460f0",
+    ];
+
     println!("Available dispatchers:");
-    println!("  Basic commands:");
-    println!("  Exec <command>                    - Execute a command");
-    println!("  KillActiveWindow                  - Kill the active window");
-    println!("  Exit                              - Exit Hyprland");
-    println!("  ForceRendererReload               - Force the renderer to reload");
-    println!();
 
-    println!("  Window management:");
-    println!("  ToggleFloating [window]           - Toggle floating mode for a window");
-    println!(
-        "  ToggleFullscreen <type>           - Toggle fullscreen mode (Real, Maximize, NoParam)"
-    );
-    println!("  ToggleFakeFullscreen              - Toggle fake fullscreen for the active window");
-    println!("  TogglePseudo                      - Toggle pseudo tiling for the active window");
-    println!("  TogglePin                         - Pin the active window to all workspaces");
-    println!("  ToggleOpaque                      - Toggle opacity for the active window");
-    println!("  CenterWindow                      - Center the active window");
-    println!(
-        "  BringActiveToTop                  - Bring the active window to the top of the stack"
-    );
-    println!();
+    for category in categories {
+        println!("\n  {}:", category.name);
+        // Find the maximum length of dispatcher names in this category for alignment
+        let max_name_len = category
+            .dispatchers
+            .iter()
+            .map(|d| d.name.len())
+            .max()
+            .unwrap_or(0);
 
-    println!("  Focus control:");
-    println!(
-        "  MoveFocus <direction>             - Move focus in a direction (Up, Down, Left, Right)"
-    );
-    println!("  FocusWindow <window>              - Focus a specific window");
-    println!("  FocusMonitor <identifier>         - Focus a specific monitor");
-    println!("  FocusUrgentOrLast                 - Focus the urgent window or the last one");
-    println!("  FocusCurrentOrLast                - Switch focus between current and last window");
-    println!();
+        for dispatcher in category.dispatchers {
+            // Use formatting specifier :<width> to pad with spaces on the right
+            println!(
+                "    {:<width$} - {}",
+                dispatcher.name,
+                dispatcher.description,
+                width = max_name_len
+            );
+        }
+    }
 
-    println!("  Window movement:");
-    println!("  MoveWindow <direction>            - Move window in a direction");
-    println!("  MoveActive <position>             - Move the active window to a position");
-    println!("  MoveWindowPixel <position> <win>  - Move a specific window to a position");
-    println!("  ResizeActive <position>           - Resize the active window");
-    println!("  ResizeWindowPixel <pos> <win>     - Resize a specific window");
-    println!();
+    println!("\nWindow identifiers (can be used with ToggleFloating, FocusWindow, etc.):");
+    let max_id_name_len = identifiers
+        .iter()
+        .map(|id| id.name.len())
+        .max()
+        .unwrap_or(0);
+    for identifier in identifiers {
+        println!(
+            "  {:<width$} - {}",
+            identifier.name,
+            identifier.description,
+            width = max_id_name_len
+        );
+    }
 
-    println!("  Workspace management:");
-    println!(
-        "  Workspace <workspace>             - Switch to workspace (number, previous, empty, name:NAME)"
-    );
-    println!("  MoveToWorkspace <workspace>       - Move window to workspace");
-    println!(
-        "  MoveToWorkspaceSilent <workspace> - Move window to workspace without switching to it"
-    );
-    println!("  RenameWorkspace <id> <name>       - Rename a workspace");
-    println!();
-
-    println!("  Cycling and swapping:");
-    println!("  CycleWindow <direction>           - Cycle windows (Next, Previous)");
-    println!("  SwapNext <direction>              - Swap with next window (Next, Previous)");
-    println!(
-        "  SwapWindow <direction>            - Swap windows in a direction (Up, Down, Left, Right)"
-    );
-    println!();
-
-    println!("  Cursor control:");
-    println!(
-        "  MoveCursorToCorner <corner>       - Move cursor to a corner (TopLeft, TopRight, BottomLeft, BottomRight)"
-    );
-    println!("  MoveCursor <x> <y>                - Move cursor to a position");
-    println!("  SetCursor <theme> <size>          - Set cursor theme and size");
-    println!();
-
-    println!("  Monitor management:");
-    println!("  MoveCurrentWorkspaceToMonitor <mon> - Move current workspace to a monitor");
-    println!("  MoveWorkspaceToMonitor <ws> <mon>   - Move a workspace to a monitor");
-    println!("  SwapActiveWorkspaces <mon1> <mon2>  - Swap active workspaces of two monitors");
-    println!("  ToggleDPMS <on/off> [monitor]       - Toggle DPMS status for monitors");
-    println!();
-
-    println!("  Layout-specific commands (Dwindle):");
-    println!("  ToggleSplit                       - Toggle the split orientation");
-    println!();
-
-    println!("  Layout-specific commands (Master):");
-    println!("  SwapWithMaster <param>            - Swap with master window (Master, Child, Auto)");
-    println!("  FocusMaster <param>               - Focus the master window (Master, Auto)");
-    println!("  AddMaster                         - Add a master to the master side");
-    println!("  RemoveMaster                      - Remove a master from the master side");
-    println!("  OrientationLeft                   - Set orientation to left");
-    println!("  OrientationRight                  - Set orientation to right");
-    println!("  OrientationTop                    - Set orientation to top");
-    println!("  OrientationBottom                 - Set orientation to bottom");
-    println!("  OrientationCenter                 - Set orientation to center");
-    println!("  OrientationNext                   - Cycle to next orientation");
-    println!("  OrientationPrev                   - Cycle to previous orientation");
-    println!();
-
-    println!("  Window grouping:");
-    println!("  ToggleGroup                       - Toggle the current window into a group");
-    println!(
-        "  ChangeGroupActive <direction>     - Switch to next window in group (Forward, Back)"
-    );
-    println!("  LockGroups <action>               - Lock groups (Lock, Unlock, ToggleLock)");
-    println!("  MoveIntoGroup <direction>         - Move window into group in direction");
-    println!("  MoveOutOfGroup                    - Move window out of group");
-    println!();
-
-    println!("Window identifiers (can be used with ToggleFloating, FocusWindow, etc.):");
-    println!("  class:REGEX                       - Match window by class regex");
-    println!("  title:REGEX                       - Match window by title regex");
-    println!("  pid:PID                           - Match window by process ID");
-    println!(
-        "  address:ADDR                      - Match window by address (hex value, with or without 0x prefix)"
-    );
-    println!();
-
-    println!("Examples:");
-    println!("  hypr-rs dispatch Exec \"kitty\"");
-    println!("  hypr-rs dispatch MoveCursorToCorner TopLeft");
-    println!("  hypr-rs dispatch Workspace 1");
-    println!("  hypr-rs dispatch --async ToggleFullscreen Maximize");
-    println!("  hypr-rs dispatch CycleWindow Next");
-    println!("  hypr-rs dispatch MoveFocus Right");
-    println!("  hypr-rs dispatch ToggleFloating \"class:^(Google-chrome)$\"");
-    println!("  hypr-rs dispatch FocusWindow \"title:^(.*Terminal.*)$\"");
-    println!("  hypr-rs dispatch ToggleFloating address:5934277460f0");
+    println!("\nExamples:");
+    for example in examples {
+        println!("  {}", example);
+    }
 }
 
 /// Parse a window identifier from a string (e.g., class, title, pid, address).
@@ -378,14 +607,24 @@ pub fn parse_dispatcher(
             }
             if args[0] == "exact" {
                 if args.len() != 3 {
-                    return Err("ResizeActive exact requires two arguments: <width> <height>".to_string());
+                    return Err(
+                        "ResizeActive exact requires two arguments: <width> <height>".to_string(),
+                    );
                 }
-                let width = args[1].parse::<i16>().map_err(|_| format!("Invalid width: {}", args[1]))?;
-                let height = args[2].parse::<i16>().map_err(|_| format!("Invalid height: {}", args[2]))?;
+                let width = args[1]
+                    .parse::<i16>()
+                    .map_err(|_| format!("Invalid width: {}", args[1]))?;
+                let height = args[2]
+                    .parse::<i16>()
+                    .map_err(|_| format!("Invalid height: {}", args[2]))?;
                 Ok(DispatchType::ResizeActive(Position::Exact(width, height)))
             } else if args.len() == 2 {
-                let dx = args[0].parse::<i16>().map_err(|_| format!("Invalid dx: {}", args[0]))?;
-                let dy = args[1].parse::<i16>().map_err(|_| format!("Invalid dy: {}", args[1]))?;
+                let dx = args[0]
+                    .parse::<i16>()
+                    .map_err(|_| format!("Invalid dx: {}", args[0]))?;
+                let dy = args[1]
+                    .parse::<i16>()
+                    .map_err(|_| format!("Invalid dy: {}", args[1]))?;
                 Ok(DispatchType::ResizeActive(Position::Delta(dx, dy)))
             } else {
                 Err("ResizeActive requires either two arguments (<dx> <dy>) or 'exact <width> <height>'".to_string())
@@ -397,17 +636,34 @@ pub fn parse_dispatcher(
             }
             if args[0] == "exact" {
                 if args.len() != 4 {
-                    return Err("ResizeWindowPixel exact requires three arguments: <width> <height> <win>".to_string());
+                    return Err(
+                        "ResizeWindowPixel exact requires three arguments: <width> <height> <win>"
+                            .to_string(),
+                    );
                 }
-                let width = args[1].parse::<i16>().map_err(|_| format!("Invalid width: {}", args[1]))?;
-                let height = args[2].parse::<i16>().map_err(|_| format!("Invalid height: {}", args[2]))?;
+                let width = args[1]
+                    .parse::<i16>()
+                    .map_err(|_| format!("Invalid width: {}", args[1]))?;
+                let height = args[2]
+                    .parse::<i16>()
+                    .map_err(|_| format!("Invalid height: {}", args[2]))?;
                 let win_id = parse_window_identifier(&args[3])?;
-                Ok(DispatchType::ResizeWindowPixel(Position::Exact(width, height), win_id))
+                Ok(DispatchType::ResizeWindowPixel(
+                    Position::Exact(width, height),
+                    win_id,
+                ))
             } else if args.len() == 3 {
-                let dx = args[0].parse::<i16>().map_err(|_| format!("Invalid dx: {}", args[0]))?;
-                let dy = args[1].parse::<i16>().map_err(|_| format!("Invalid dy: {}", args[1]))?;
+                let dx = args[0]
+                    .parse::<i16>()
+                    .map_err(|_| format!("Invalid dx: {}", args[0]))?;
+                let dy = args[1]
+                    .parse::<i16>()
+                    .map_err(|_| format!("Invalid dy: {}", args[1]))?;
                 let win_id = parse_window_identifier(&args[2])?;
-                Ok(DispatchType::ResizeWindowPixel(Position::Delta(dx, dy), win_id))
+                Ok(DispatchType::ResizeWindowPixel(
+                    Position::Delta(dx, dy),
+                    win_id,
+                ))
             } else {
                 Err("ResizeWindowPixel requires either three arguments (<dx> <dy> <win>) or 'exact <width> <height> <win>'".to_string())
             }

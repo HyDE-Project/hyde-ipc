@@ -5,7 +5,7 @@ BIN_DIR = ./bin
 INSTALL_DIR = /usr/bin
 
 .PHONY: release debug clean install
-.DEFAULT_GOAL := release
+.DEFAULT_GOAL := install
 
 release: clean
 	@cargo build --frozen --release
