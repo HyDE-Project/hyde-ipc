@@ -11,16 +11,16 @@ mod react_config;
 mod setup;
 
 use clap::{CommandFactory, Parser};
+use clap_complete::generate;
 use flags::{Cli, Commands, DispatchCommand};
 use std::env;
 use std::fs;
+use std::io;
 use std::path::PathBuf;
 use std::process;
 
-/// Prints usage information and exits the program.
-fn print_usage_and_exit() -> ! {
+fn print_usage_and_exit() {
     Cli::command().print_help().unwrap();
-    println!();
     process::exit(1);
 }
 
@@ -162,20 +162,16 @@ pub fn main() {
                         .build()
                         .unwrap();
 
-                    // Execute the dispatch and ensure it completes
                     rt.block_on(async {
-                        // Create a oneshot channel to signal completion
                         let (tx, rx) = tokio::sync::oneshot::channel();
 
-                        // Spawn the task with a completion signal
                         tokio::spawn(async move {
                             let result = dispatch::async_dispatch(command).await;
-                            let _ = tx.send(result); // Signal completion
+                            let _ = tx.send(result);
                         });
 
-                        // Wait for the task to complete
                         match rx.await {
-                            Ok(_) => (), // Task completed successfully
+                            Ok(_) => (),
                             Err(_) => {
                                 eprintln!("Warning: Async task was dropped before completion")
                             }
@@ -211,7 +207,6 @@ pub fn main() {
             args,
             max_reactions,
         } => {
-            // Handle config file mode
             if let Some(config_path) = config {
                 if let Err(e) = react_config::run_from_config(&config_path) {
                     eprintln!("Error running from config: {}", e);
@@ -219,16 +214,16 @@ pub fn main() {
                 }
                 return;
             }
-            // Handle inline mode (single reaction)
             let event = event.unwrap_or_else(|| {
                 eprintln!("Error: event is required");
                 print_usage_and_exit();
+                String::new()
             });
             let dispatcher = dispatcher.unwrap_or_else(|| {
                 eprintln!("Error: dispatcher is required");
                 print_usage_and_exit();
+                String::new()
             });
-            // Always use synchronous mode, ignore the async flag
             if r#async {
                 println!("Note: async flag is deprecated");
             }
@@ -246,7 +241,6 @@ pub fn main() {
             restart,
         } => {
             if kill {
-                // Stop the running service
                 let status = std::process::Command::new("systemctl")
                     .args(["--user", "stop", "hyde-ipc.service"])
                     .status();
@@ -266,7 +260,6 @@ pub fn main() {
                 }
             }
             if restart {
-                // Restart the running service
                 let status = std::process::Command::new("systemctl")
                     .args(["--user", "restart", "hyde-ipc.service"])
                     .status();
@@ -287,7 +280,6 @@ pub fn main() {
             }
             if setup {
                 setup::setup_service_file();
-                // If no file is given, create an empty config file
                 let home = env::var("HOME").expect("Could not get $HOME");
                 let dest_dir = PathBuf::from(&home).join(".local/share/hyde-ipc");
                 let dest = dest_dir.join("config.toml");
@@ -298,7 +290,6 @@ pub fn main() {
                 if let Some(path) = config_path {
                     setup::copy_and_reload_config(&path);
                 } else {
-                    // Create empty file if not exists
                     if !dest.exists() {
                         if let Err(e) = fs::File::create(&dest) {
                             eprintln!("Error creating empty config file: {}", e);
@@ -318,6 +309,11 @@ pub fn main() {
         }
         Commands::Setup => {
             setup::setup_service_file();
+        }
+        Commands::GenerateCompletion { shell } => {
+            let mut cmd = Cli::command();
+            let bin_name = cmd.get_name().to_string();
+            generate(shell, &mut cmd, bin_name, &mut io::stdout());
         }
     }
 }

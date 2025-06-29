@@ -28,6 +28,7 @@ members = ["hyprland-macros", "hyprland-lib"]
 [dependencies]
 hyprland = { path = "hyprland-lib" }
 clap = { version = "4", features = ["derive"] }
+clap_complete = "4.5.54"
 tokio = { version = "1", features = ["rt", "sync", "macros"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

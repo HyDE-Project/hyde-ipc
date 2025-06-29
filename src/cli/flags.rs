@@ -3,13 +3,14 @@
 //! This module defines the command-line interface using clap, including all subcommands and their options.
 
 use clap::{ArgGroup, Parser, Subcommand};
+use clap_complete::Shell;
 
 /// Command-line interface for hyde-ipc.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
-    /// The subcommand to execute.
     #[command(subcommand)]
+    /// The subcommand to execute.
     pub command: Commands,
 }
 
@@ -43,10 +44,10 @@ pub enum Commands {
         )]
         set: bool,
 
-        /// The keyword to get or set (positional)
+        /// The keyword to get or set
         keyword: String,
 
-        /// The value to set (required if --set, positional)
+        /// The value to set
         value: Option<String>,
     },
 
@@ -153,11 +154,19 @@ pub enum Commands {
 
     /// Set up the systemd user service for hyde-ipc.
     Setup,
-    // Future: Add more subcommands here!
+
+    /// Generate shell completion scripts
+    GenerateCompletion {
+        /// The shell to generate the script for
+        #[arg(value_enum)]
+        shell: Shell,
+    },
 }
 
 #[derive(Parser, Debug)]
-#[command(help_template = "{before-help}{about-with-newline}{usage-heading}{usage}{sections}")]
+#[command(
+    help_template = "{before-help}{about-with-newline}{usage-heading}{usage}{options-heading}{options}"
+)]
 pub struct DispatchCommand {
     /// Use async mode
     #[arg(short = 'a', long = "async")]
