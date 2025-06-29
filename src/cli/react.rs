@@ -1,8 +1,39 @@
 use crate::cli::dispatch::parse_dispatcher;
+use crate::cli::flags::Dispatch as DispatchCmd;
 use hyprland::dispatch::Dispatch;
 use hyprland::event_listener::EventListener;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+fn build_dispatch_cmd(dispatcher: &str, args: &[String]) -> Result<DispatchCmd, String> {
+    match dispatcher {
+        "Exec" => Ok(DispatchCmd::Exec { command: args.to_vec() }),
+        "KillActiveWindow" => Ok(DispatchCmd::KillActiveWindow),
+        "ToggleFloating" => Ok(DispatchCmd::ToggleFloating { window: args.first().cloned() }),
+        "ToggleSplit" => Ok(DispatchCmd::ToggleSplit),
+        "ToggleOpaque" => Ok(DispatchCmd::ToggleOpaque),
+        "MoveCursorToCorner" => Ok(DispatchCmd::MoveCursorToCorner { corner: args.first().cloned().unwrap_or_default() }),
+        "ToggleFullscreen" => Ok(DispatchCmd::ToggleFullscreen { mode: args.first().cloned().unwrap_or_default() }),
+        "MoveToWorkspace" => Ok(DispatchCmd::MoveToWorkspace { workspace: args.first().cloned().unwrap_or_default() }),
+        "Workspace" => Ok(DispatchCmd::Workspace { workspace: args.first().cloned().unwrap_or_default() }),
+        "CycleWindow" => Ok(DispatchCmd::CycleWindow { direction: args.first().cloned().unwrap_or_default() }),
+        "MoveFocus" => Ok(DispatchCmd::MoveFocus { direction: args.first().cloned().unwrap_or_default() }),
+        "SwapWindow" => Ok(DispatchCmd::SwapWindow { direction: args.first().cloned().unwrap_or_default() }),
+        "FocusWindow" => Ok(DispatchCmd::FocusWindow { window: args.first().cloned().unwrap_or_default() }),
+        "ToggleFakeFullscreen" => Ok(DispatchCmd::ToggleFakeFullscreen),
+        "TogglePseudo" => Ok(DispatchCmd::TogglePseudo),
+        "TogglePin" => Ok(DispatchCmd::TogglePin),
+        "CenterWindow" => Ok(DispatchCmd::CenterWindow),
+        "BringActiveToTop" => Ok(DispatchCmd::BringActiveToTop),
+        "FocusUrgentOrLast" => Ok(DispatchCmd::FocusUrgentOrLast),
+        "FocusCurrentOrLast" => Ok(DispatchCmd::FocusCurrentOrLast),
+        "ForceRendererReload" => Ok(DispatchCmd::ForceRendererReload),
+        "Exit" => Ok(DispatchCmd::Exit),
+        "ResizeActive" => Ok(DispatchCmd::ResizeActive { resize_params: args.to_vec() }),
+        "ResizeWindowPixel" => Ok(DispatchCmd::ResizeWindowPixel { resize_params: args.to_vec() }),
+        _ => Err(format!("Unknown dispatcher: {}", dispatcher)),
+    }
+}
 
 /// React to Hyprland events and dispatch commands based on CLI arguments.
 ///
@@ -31,7 +62,15 @@ pub fn sync_react(
     println!("Press Ctrl+C to stop");
 
     // Parse the dispatcher once to validate it
-    let _dispatch_type = match parse_dispatcher(&dispatcher, &args) {
+    let dispatch_cmd = match build_dispatch_cmd(&dispatcher, &args) {
+        Ok(cmd) => cmd,
+        Err(e) => {
+            eprintln!("Error parsing dispatcher: {}", e);
+            return Err(hyprland::shared::HyprError::Other(e));
+        }
+    };
+
+    let _dispatch_type = match parse_dispatcher(dispatch_cmd) {
         Ok(dt) => dt,
         Err(e) => {
             eprintln!("Error parsing dispatcher: {}", e);
@@ -449,7 +488,15 @@ fn handle_event(dispatcher: &str, args: &[String], count: &Arc<AtomicUsize>, max
         0
     };
 
-    match parse_dispatcher(dispatcher, args) {
+    let dispatch_cmd = match build_dispatch_cmd(dispatcher, args) {
+        Ok(cmd) => cmd,
+        Err(e) => {
+            eprintln!("Error parsing dispatcher: {}", e);
+            return;
+        }
+    };
+
+    match parse_dispatcher(dispatch_cmd) {
         Ok(dispatch_type) => {
             println!("Event triggered! Executing: {} {:?}", dispatcher, args);
 
