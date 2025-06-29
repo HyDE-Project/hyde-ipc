@@ -30,6 +30,12 @@ use futures_lite::{Stream, StreamExt};
 pub struct EventStream {
     stream: Pin<Box<dyn Stream<Item = crate::Result<Event>> + Send>>,
 }
+impl Default for EventStream {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EventStream {
     /// Creates a new [EventStream]
     pub fn new() -> Self {
