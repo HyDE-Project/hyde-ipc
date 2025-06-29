@@ -379,7 +379,9 @@ pub fn listen(filter: Option<String>, max_events: usize, json: bool) -> hyprland
 
 fn should_log_event(event_type: &str, filter: &Option<String>) -> bool {
     match filter {
-        Some(f) if !f.is_empty() => event_type.to_lowercase().contains(&f.to_lowercase()),
+        Some(f) if !f.is_empty() => event_type
+            .to_lowercase()
+            .contains(&f.to_lowercase()),
         _ => true,
     }
 }

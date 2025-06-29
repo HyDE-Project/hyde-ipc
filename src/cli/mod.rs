@@ -176,14 +176,18 @@ pub fn main() {
                         // Wait for the task to complete
                         match rx.await {
                             Ok(_) => (), // Task completed successfully
-                            Err(_) => eprintln!("Warning: Async task was dropped before completion"),
+                            Err(_) => {
+                                eprintln!("Warning: Async task was dropped before completion")
+                            }
                         }
                     });
                 } else {
                     dispatch::sync_dispatch(command);
                 }
             } else {
-                DispatchCommand::command().print_help().unwrap();
+                DispatchCommand::command()
+                    .print_help()
+                    .unwrap();
             }
         }
         Commands::Listen {
@@ -228,12 +232,19 @@ pub fn main() {
             if r#async {
                 println!("Note: async flag is deprecated");
             }
-            if let Err(e) = react::sync_react(event, subtype, filter, dispatcher, args, max_reactions) {
+            if let Err(e) =
+                react::sync_react(event, subtype, filter, dispatcher, args, max_reactions)
+            {
                 eprintln!("Error: {}", e);
                 process::exit(1);
             }
         }
-        Commands::Global { config_path, setup, kill, restart } => {
+        Commands::Global {
+            config_path,
+            setup,
+            kill,
+            restart,
+        } => {
             if kill {
                 // Stop the running service
                 let status = std::process::Command::new("systemctl")
