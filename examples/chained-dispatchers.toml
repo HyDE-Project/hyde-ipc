@@ -1,0 +1,9 @@
+[[reactions]]
+event_type = { Window = "Opened" }
+window_filter = "class:Alacritty"
+dispatchers = [
+  { name = "FocusWindow", args = ["class:Alacritty"] },
+  { name = "ToggleFloating" },
+  { name = "ResizeActive", args = ["exact", "800", "600"] },
+  { name = "CenterWindow" }
+]
