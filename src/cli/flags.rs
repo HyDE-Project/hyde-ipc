@@ -43,22 +43,7 @@ pub enum Commands {
     },
 
     /// Execute a dispatcher command.
-    Dispatch {
-        /// Use async mode
-        #[arg(short = 'a', long = "async")]
-        r#async: bool,
-
-        /// List available dispatchers
-        #[arg(short = 'l', long = "list-dispatchers")]
-        list_dispatchers: bool,
-
-        /// The dispatcher to execute
-        #[arg(required_unless_present = "list_dispatchers")]
-        dispatcher: Option<String>,
-
-        /// The arguments for the dispatcher
-        args: Vec<String>,
-    },
+    Dispatch(DispatchCommand),
 
     /// Listen for and log Hyprland events.
     Listen {
@@ -137,4 +122,97 @@ pub enum Commands {
     /// Set up the systemd user service for hyde-ipc.
     Setup,
     // Future: Add more subcommands here!
+}
+
+#[derive(Parser, Debug)]
+#[command(
+    help_template = "{before-help}{about-with-newline}{usage-heading}{usage}{sections}"
+)]
+pub struct DispatchCommand {
+    /// Use async mode
+    #[arg(short = 'a', long = "async")]
+    pub r#async: bool,
+
+    /// List available dispatchers
+    #[arg(short = 'l', long = "list-dispatchers")]
+    pub list_dispatchers: bool,
+
+    #[command(subcommand)]
+    pub command: Option<Dispatch>,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum Dispatch {
+    /// Execute a command
+    Exec {
+        command: Vec<String>,
+    },
+    /// Kill the active window
+    KillActiveWindow,
+    /// Toggle floating mode for a window
+    ToggleFloating {
+        window: Option<String>,
+    },
+    /// Toggle the split orientation
+    ToggleSplit,
+    /// Toggle opacity for the active window
+    ToggleOpaque,
+    /// Move cursor to a corner
+    MoveCursorToCorner {
+        corner: String,
+    },
+    /// Toggle fullscreen mode
+    ToggleFullscreen {
+        mode: String,
+    },
+    /// Move window to workspace
+    MoveToWorkspace {
+        workspace: String,
+    },
+    /// Switch to a workspace
+    Workspace {
+        workspace: String,
+    },
+    /// Cycle through windows
+    CycleWindow {
+        direction: String,
+    },
+    /// Move focus in a direction
+    MoveFocus {
+        direction: String,
+    },
+    /// Swap windows in a direction
+    SwapWindow {
+        direction: String,
+    },
+    /// Focus a specific window
+    FocusWindow {
+        window: String,
+    },
+    /// Toggle fake fullscreen
+    ToggleFakeFullscreen,
+    /// Toggle pseudo tiling
+    TogglePseudo,
+    /// Pin the active window to all workspaces
+    TogglePin,
+    /// Center the active window
+    CenterWindow,
+    /// Bring the active window to the top
+    BringActiveToTop,
+    /// Focus the urgent or last window
+    FocusUrgentOrLast,
+    /// Switch focus between current and last window
+    FocusCurrentOrLast,
+    /// Force the renderer to reload
+    ForceRendererReload,
+    /// Exit Hyprland
+    Exit,
+    /// Resize the active window
+    ResizeActive {
+        resize_params: Vec<String>,
+    },
+    /// Resize a specific window by pixel
+    ResizeWindowPixel {
+        resize_params: Vec<String>,
+    },
 }

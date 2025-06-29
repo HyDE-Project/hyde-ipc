@@ -1,3 +1,4 @@
+use crate::cli::flags::Dispatch as DispatchCmd;
 use hyprland::dispatch::Dispatch;
 use hyprland::event_listener::EventListener;
 use serde::{Deserialize, Serialize};
@@ -6,6 +7,36 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+fn build_dispatch_cmd(dispatcher: &str, args: &[String]) -> Result<DispatchCmd, String> {
+    match dispatcher {
+        "Exec" => Ok(DispatchCmd::Exec { command: args.to_vec() }),
+        "KillActiveWindow" => Ok(DispatchCmd::KillActiveWindow),
+        "ToggleFloating" => Ok(DispatchCmd::ToggleFloating { window: args.first().cloned() }),
+        "ToggleSplit" => Ok(DispatchCmd::ToggleSplit),
+        "ToggleOpaque" => Ok(DispatchCmd::ToggleOpaque),
+        "MoveCursorToCorner" => Ok(DispatchCmd::MoveCursorToCorner { corner: args.first().cloned().unwrap_or_default() }),
+        "ToggleFullscreen" => Ok(DispatchCmd::ToggleFullscreen { mode: args.first().cloned().unwrap_or_default() }),
+        "MoveToWorkspace" => Ok(DispatchCmd::MoveToWorkspace { workspace: args.first().cloned().unwrap_or_default() }),
+        "Workspace" => Ok(DispatchCmd::Workspace { workspace: args.first().cloned().unwrap_or_default() }),
+        "CycleWindow" => Ok(DispatchCmd::CycleWindow { direction: args.first().cloned().unwrap_or_default() }),
+        "MoveFocus" => Ok(DispatchCmd::MoveFocus { direction: args.first().cloned().unwrap_or_default() }),
+        "SwapWindow" => Ok(DispatchCmd::SwapWindow { direction: args.first().cloned().unwrap_or_default() }),
+        "FocusWindow" => Ok(DispatchCmd::FocusWindow { window: args.first().cloned().unwrap_or_default() }),
+        "ToggleFakeFullscreen" => Ok(DispatchCmd::ToggleFakeFullscreen),
+        "TogglePseudo" => Ok(DispatchCmd::TogglePseudo),
+        "TogglePin" => Ok(DispatchCmd::TogglePin),
+        "CenterWindow" => Ok(DispatchCmd::CenterWindow),
+        "BringActiveToTop" => Ok(DispatchCmd::BringActiveToTop),
+        "FocusUrgentOrLast" => Ok(DispatchCmd::FocusUrgentOrLast),
+        "FocusCurrentOrLast" => Ok(DispatchCmd::FocusCurrentOrLast),
+        "ForceRendererReload" => Ok(DispatchCmd::ForceRendererReload),
+        "Exit" => Ok(DispatchCmd::Exit),
+        "ResizeActive" => Ok(DispatchCmd::ResizeActive { resize_params: args.to_vec() }),
+        "ResizeWindowPixel" => Ok(DispatchCmd::ResizeWindowPixel { resize_params: args.to_vec() }),
+        _ => Err(format!("Unknown dispatcher: {}", dispatcher)),
+    }
+}
 
 /// Types of window events
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -201,7 +232,8 @@ impl Reaction {
                 dispatcher.args
             );
             
-            match super::dispatch::parse_dispatcher(&dispatcher.name, &dispatcher.args) {
+            let dispatch_cmd = build_dispatch_cmd(&dispatcher.name, &dispatcher.args)?;
+            match super::dispatch::parse_dispatcher(dispatch_cmd) {
                 Ok(dispatch_type) => {
                     if let Err(e) = Dispatch::call(dispatch_type) {
                         eprintln!("Error executing dispatcher: {}", e);
