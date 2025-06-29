@@ -16,7 +16,9 @@ pub fn setup_service_file() {
         eprintln!("Could not find hyde-ipc binary in PATH");
         std::process::exit(1);
     }
-    let hyde_ipc_path = String::from_utf8_lossy(&which_output.stdout).trim().to_string();
+    let hyde_ipc_path = String::from_utf8_lossy(&which_output.stdout)
+        .trim()
+        .to_string();
     let config_path = format!("/home/{}/.local/share/hyde-ipc/config.toml", username);
     let service_content = format!(
         r#"[Unit]
@@ -32,8 +34,7 @@ pub fn setup_service_file() {
             [Install]
             WantedBy=default.target
         "#,
-        hyde_ipc_path,
-        config_path
+        hyde_ipc_path, config_path
     );
     let systemd_dir = PathBuf::from(&home).join(".config/systemd/user");
     if let Err(e) = fs::create_dir_all(&systemd_dir) {

@@ -7,19 +7,63 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 fn build_dispatch_cmd(dispatcher: &str, args: &[String]) -> Result<DispatchCmd, String> {
     match dispatcher {
-        "Exec" => Ok(DispatchCmd::Exec { command: args.to_vec() }),
+        "Exec" => Ok(DispatchCmd::Exec {
+            command: args.to_vec(),
+        }),
         "KillActiveWindow" => Ok(DispatchCmd::KillActiveWindow),
-        "ToggleFloating" => Ok(DispatchCmd::ToggleFloating { window: args.first().cloned() }),
+        "ToggleFloating" => Ok(DispatchCmd::ToggleFloating {
+            window: args.first().cloned(),
+        }),
         "ToggleSplit" => Ok(DispatchCmd::ToggleSplit),
         "ToggleOpaque" => Ok(DispatchCmd::ToggleOpaque),
-        "MoveCursorToCorner" => Ok(DispatchCmd::MoveCursorToCorner { corner: args.first().cloned().unwrap_or_default() }),
-        "ToggleFullscreen" => Ok(DispatchCmd::ToggleFullscreen { mode: args.first().cloned().unwrap_or_default() }),
-        "MoveToWorkspace" => Ok(DispatchCmd::MoveToWorkspace { workspace: args.first().cloned().unwrap_or_default() }),
-        "Workspace" => Ok(DispatchCmd::Workspace { workspace: args.first().cloned().unwrap_or_default() }),
-        "CycleWindow" => Ok(DispatchCmd::CycleWindow { direction: args.first().cloned().unwrap_or_default() }),
-        "MoveFocus" => Ok(DispatchCmd::MoveFocus { direction: args.first().cloned().unwrap_or_default() }),
-        "SwapWindow" => Ok(DispatchCmd::SwapWindow { direction: args.first().cloned().unwrap_or_default() }),
-        "FocusWindow" => Ok(DispatchCmd::FocusWindow { window: args.first().cloned().unwrap_or_default() }),
+        "MoveCursorToCorner" => Ok(DispatchCmd::MoveCursorToCorner {
+            corner: args
+                .first()
+                .cloned()
+                .unwrap_or_default(),
+        }),
+        "ToggleFullscreen" => Ok(DispatchCmd::ToggleFullscreen {
+            mode: args
+                .first()
+                .cloned()
+                .unwrap_or_default(),
+        }),
+        "MoveToWorkspace" => Ok(DispatchCmd::MoveToWorkspace {
+            workspace: args
+                .first()
+                .cloned()
+                .unwrap_or_default(),
+        }),
+        "Workspace" => Ok(DispatchCmd::Workspace {
+            workspace: args
+                .first()
+                .cloned()
+                .unwrap_or_default(),
+        }),
+        "CycleWindow" => Ok(DispatchCmd::CycleWindow {
+            direction: args
+                .first()
+                .cloned()
+                .unwrap_or_default(),
+        }),
+        "MoveFocus" => Ok(DispatchCmd::MoveFocus {
+            direction: args
+                .first()
+                .cloned()
+                .unwrap_or_default(),
+        }),
+        "SwapWindow" => Ok(DispatchCmd::SwapWindow {
+            direction: args
+                .first()
+                .cloned()
+                .unwrap_or_default(),
+        }),
+        "FocusWindow" => Ok(DispatchCmd::FocusWindow {
+            window: args
+                .first()
+                .cloned()
+                .unwrap_or_default(),
+        }),
         "ToggleFakeFullscreen" => Ok(DispatchCmd::ToggleFakeFullscreen),
         "TogglePseudo" => Ok(DispatchCmd::TogglePseudo),
         "TogglePin" => Ok(DispatchCmd::TogglePin),
@@ -29,8 +73,12 @@ fn build_dispatch_cmd(dispatcher: &str, args: &[String]) -> Result<DispatchCmd, 
         "FocusCurrentOrLast" => Ok(DispatchCmd::FocusCurrentOrLast),
         "ForceRendererReload" => Ok(DispatchCmd::ForceRendererReload),
         "Exit" => Ok(DispatchCmd::Exit),
-        "ResizeActive" => Ok(DispatchCmd::ResizeActive { resize_params: args.to_vec() }),
-        "ResizeWindowPixel" => Ok(DispatchCmd::ResizeWindowPixel { resize_params: args.to_vec() }),
+        "ResizeActive" => Ok(DispatchCmd::ResizeActive {
+            resize_params: args.to_vec(),
+        }),
+        "ResizeWindowPixel" => Ok(DispatchCmd::ResizeWindowPixel {
+            resize_params: args.to_vec(),
+        }),
         _ => Err(format!("Unknown dispatcher: {}", dispatcher)),
     }
 }
@@ -131,16 +179,24 @@ fn setup_event_handlers(
                             // Check if we have a window filter
                             if let Some(window_filter) = &filter_clone {
                                 if let Some(title_pattern) = window_filter.strip_prefix("title:") {
-                                    if !data.window_title.contains(title_pattern) {
+                                    if !data
+                                        .window_title
+                                        .contains(title_pattern)
+                                    {
                                         return; // Skip if window title doesn't match
                                     }
-                                } else if let Some(class_pattern) = window_filter.strip_prefix("class:") {
-                                    if !data.window_class.contains(class_pattern) {
+                                } else if let Some(class_pattern) =
+                                    window_filter.strip_prefix("class:")
+                                {
+                                    if !data
+                                        .window_class
+                                        .contains(class_pattern)
+                                    {
                                         return; // Skip if window class doesn't match
                                     }
                                 }
                             }
-                            
+
                             handle_event(
                                 &dispatcher_clone,
                                 &args_clone,
@@ -184,12 +240,22 @@ fn setup_event_handlers(
                             // Check if we have window data and a window filter
                             if let Some(window_data) = data.as_ref() {
                                 if let Some(window_filter) = &filter_clone {
-                                    if let Some(title_pattern) = window_filter.strip_prefix("title:") {
-                                        if !window_data.title.contains(title_pattern) {
+                                    if let Some(title_pattern) =
+                                        window_filter.strip_prefix("title:")
+                                    {
+                                        if !window_data
+                                            .title
+                                            .contains(title_pattern)
+                                        {
                                             return; // Skip if window title doesn't match
                                         }
-                                    } else if let Some(class_pattern) = window_filter.strip_prefix("class:") {
-                                        if !window_data.class.contains(class_pattern) {
+                                    } else if let Some(class_pattern) =
+                                        window_filter.strip_prefix("class:")
+                                    {
+                                        if !window_data
+                                            .class
+                                            .contains(class_pattern)
+                                        {
                                             return; // Skip if window class doesn't match
                                         }
                                     }
@@ -198,7 +264,7 @@ fn setup_event_handlers(
                                 // If we have a window filter but no window data, skip
                                 return;
                             }
-                            
+
                             handle_event(
                                 &dispatcher_clone,
                                 &args_clone,
@@ -225,16 +291,22 @@ fn setup_event_handlers(
                     // Check if we have a window filter
                     if let Some(window_filter) = &filter_clone {
                         if let Some(title_pattern) = window_filter.strip_prefix("title:") {
-                            if !data.window_title.contains(title_pattern) {
+                            if !data
+                                .window_title
+                                .contains(title_pattern)
+                            {
                                 return; // Skip if window title doesn't match
                             }
                         } else if let Some(class_pattern) = window_filter.strip_prefix("class:") {
-                            if !data.window_class.contains(class_pattern) {
+                            if !data
+                                .window_class
+                                .contains(class_pattern)
+                            {
                                 return; // Skip if window class doesn't match
                             }
                         }
                     }
-                    
+
                     handle_event(&dispatcher_clone, &args_clone, &count_clone, max_reactions);
                 });
 
@@ -263,11 +335,18 @@ fn setup_event_handlers(
                     if let Some(window_data) = data.as_ref() {
                         if let Some(window_filter) = &filter_clone {
                             if let Some(title_pattern) = window_filter.strip_prefix("title:") {
-                                if !window_data.title.contains(title_pattern) {
+                                if !window_data
+                                    .title
+                                    .contains(title_pattern)
+                                {
                                     return; // Skip if window title doesn't match
                                 }
-                            } else if let Some(class_pattern) = window_filter.strip_prefix("class:") {
-                                if !window_data.class.contains(class_pattern) {
+                            } else if let Some(class_pattern) = window_filter.strip_prefix("class:")
+                            {
+                                if !window_data
+                                    .class
+                                    .contains(class_pattern)
+                                {
                                     return; // Skip if window class doesn't match
                                 }
                             }
@@ -276,7 +355,7 @@ fn setup_event_handlers(
                         // If we have a window filter but no window data, skip
                         return;
                     }
-                    
+
                     handle_event(&dispatcher_clone, &args_clone, &count_clone, max_reactions);
                 });
             }

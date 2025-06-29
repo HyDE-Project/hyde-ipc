@@ -3,7 +3,9 @@ pub fn sync_keyword(get: bool, set: bool, keyword: String, value: Option<String>
         println!(
             "{} value is {}",
             keyword,
-            hyprland::keyword::Keyword::get(&keyword).unwrap().value
+            hyprland::keyword::Keyword::get(&keyword)
+                .unwrap()
+                .value
         );
     } else if set {
         let value = value.as_ref().unwrap();

@@ -28,11 +28,19 @@ pub enum Commands {
         r#async: bool,
 
         /// Get the value of a keyword
-        #[arg(short = 'g', long = "get", group = "action")]
+        #[arg(
+            short = 'g',
+            long = "get",
+            group = "action"
+        )]
         get: bool,
 
         /// Set the value of a keyword
-        #[arg(short = 's', long = "set", group = "action")]
+        #[arg(
+            short = 's',
+            long = "set",
+            group = "action"
+        )]
         set: bool,
 
         /// The keyword to get or set (positional)
@@ -52,7 +60,11 @@ pub enum Commands {
         filter: Option<String>,
 
         /// Maximum number of events to log (0 for unlimited)
-        #[arg(short = 'n', long = "max-events", default_value = "0")]
+        #[arg(
+            short = 'n',
+            long = "max-events",
+            default_value = "0"
+        )]
         max_events: usize,
 
         /// Use JSON format for output
@@ -72,27 +84,43 @@ pub enum Commands {
         r#async: bool,
 
         /// Use a config file to define multiple reactions
-        #[arg(short = 'c', long = "config", group = "mode")]
+        #[arg(
+            short = 'c',
+            long = "config",
+            group = "mode"
+        )]
         config: Option<String>,
 
         /// Use inline mode (single reaction)
-        #[arg(short = 'i', long = "inline", group = "mode")]
+        #[arg(
+            short = 'i',
+            long = "inline",
+            group = "mode"
+        )]
         inline: bool,
 
         /// Event type to react to (e.g., "window", "workspace")
-        #[arg(short = 'e', long = "event", required_unless_present = "config")]
+        #[arg(
+            short = 'e',
+            long = "event",
+            required_unless_present = "config"
+        )]
         event: Option<String>,
 
         /// Event subtype for more specific filtering (e.g., "opened" for window events)
         #[arg(short = 's', long = "subtype")]
         subtype: Option<String>,
-        
+
         /// Window filter for window events (e.g., "title:Google Chrome" or "class:firefox")
         #[arg(short = 'f', long = "filter")]
         filter: Option<String>,
 
         /// Dispatcher command to execute when the event occurs
-        #[arg(short = 'd', long = "dispatch", required_unless_present = "config")]
+        #[arg(
+            short = 'd',
+            long = "dispatch",
+            required_unless_present = "config"
+        )]
         dispatcher: Option<String>,
 
         /// Arguments for the dispatcher
@@ -100,7 +128,11 @@ pub enum Commands {
         args: Vec<String>,
 
         /// Limit number of reactions (0 for unlimited)
-        #[arg(short = 'n', long = "max-reactions", default_value = "0")]
+        #[arg(
+            short = 'n',
+            long = "max-reactions",
+            default_value = "0"
+        )]
         max_reactions: usize,
     },
 
@@ -125,9 +157,7 @@ pub enum Commands {
 }
 
 #[derive(Parser, Debug)]
-#[command(
-    help_template = "{before-help}{about-with-newline}{usage-heading}{usage}{sections}"
-)]
+#[command(help_template = "{before-help}{about-with-newline}{usage-heading}{usage}{sections}")]
 pub struct DispatchCommand {
     /// Use async mode
     #[arg(short = 'a', long = "async")]
@@ -144,51 +174,31 @@ pub struct DispatchCommand {
 #[derive(Subcommand, Debug)]
 pub enum Dispatch {
     /// Execute a command
-    Exec {
-        command: Vec<String>,
-    },
+    Exec { command: Vec<String> },
     /// Kill the active window
     KillActiveWindow,
     /// Toggle floating mode for a window
-    ToggleFloating {
-        window: Option<String>,
-    },
+    ToggleFloating { window: Option<String> },
     /// Toggle the split orientation
     ToggleSplit,
     /// Toggle opacity for the active window
     ToggleOpaque,
     /// Move cursor to a corner
-    MoveCursorToCorner {
-        corner: String,
-    },
+    MoveCursorToCorner { corner: String },
     /// Toggle fullscreen mode
-    ToggleFullscreen {
-        mode: String,
-    },
+    ToggleFullscreen { mode: String },
     /// Move window to workspace
-    MoveToWorkspace {
-        workspace: String,
-    },
+    MoveToWorkspace { workspace: String },
     /// Switch to a workspace
-    Workspace {
-        workspace: String,
-    },
+    Workspace { workspace: String },
     /// Cycle through windows
-    CycleWindow {
-        direction: String,
-    },
+    CycleWindow { direction: String },
     /// Move focus in a direction
-    MoveFocus {
-        direction: String,
-    },
+    MoveFocus { direction: String },
     /// Swap windows in a direction
-    SwapWindow {
-        direction: String,
-    },
+    SwapWindow { direction: String },
     /// Focus a specific window
-    FocusWindow {
-        window: String,
-    },
+    FocusWindow { window: String },
     /// Toggle fake fullscreen
     ToggleFakeFullscreen,
     /// Toggle pseudo tiling
@@ -208,11 +218,7 @@ pub enum Dispatch {
     /// Exit Hyprland
     Exit,
     /// Resize the active window
-    ResizeActive {
-        resize_params: Vec<String>,
-    },
+    ResizeActive { resize_params: Vec<String> },
     /// Resize a specific window by pixel
-    ResizeWindowPixel {
-        resize_params: Vec<String>,
-    },
+    ResizeWindowPixel { resize_params: Vec<String> },
 }
