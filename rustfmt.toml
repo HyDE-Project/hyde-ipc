@@ -1,4 +1,7 @@
-error_on_line_overflow = true
-error_on_unformatted = true
-style_edition = "2024"
-overflow_delimited_expr = false
+unstable_features = true
+empty_item_single_line = false
+indent_style = "Block"
+attr_fn_like_width = 40
+array_width = 45
+# chain_indent = "Block"
+chain_width = 40
