@@ -1,3 +1,5 @@
 [toolchain]
-channel = "nightly"
+channel = "nightly-2025-07-02"
+# (667787527 2025-07-02)
+# switch to same stable on release
 components = ["rustfmt"]
