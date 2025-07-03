@@ -1,17 +1,9 @@
-[package]
-name = "hyde-ipc"
-edition = "2024"
-readme = "README.md"
-#####
-authors.workspace = true
-version.workspace = true
-license.workspace = true
-repository.workspace = true
-keywords.workspace = true
-categories.workspace = true
-
+# [package]
+# name = "hyde-ipc"
 
 [workspace.package]
+edition = "2024"
+readme = "README.md"
 authors = ["prime-run <prime-run@github.com>"]
 version = "0.1.2"
 license = "MIT"
@@ -21,36 +13,15 @@ categories = ["API bindings"]
 
 
 [workspace]
-members = ["hyprland-macros", "hyprland-lib"]
-# hyprland-macros :: hypland-lib
-
-
-[dependencies]
-hyprland = { path = "hyprland-lib" }
-clap = { version = "4", features = ["derive"] }
-clap_complete = "4.5.54"
-tokio = { version = "1", features = ["rt", "sync", "macros"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-toml = "0.8"
-
-[features]
-default = ["hyprland/default"]
-async-lite = ["hyprland/async-lite"]
-async-std = ["hyprland/async-std"]
-tokio = ["hyprland/tokio"]
-dispatch = ["hyprland/dispatch"]
-data = ["hyprland/data"]
-ctl = ["hyprland/ctl"]
-keyword = ["hyprland/keyword"]
-config = ["hyprland/config"]
-listener = ["hyprland/listener"]
-parking_lot = ["hyprland/parking_lot"]
-ahash = ["hyprland/ahash"]
-unsafe-impl = ["hyprland/unsafe-impl"]
+members = ["hyprland-macros", "hyprland-lib", "cli"]
+default-members = ["cli"]
+resolver = "3"
 
 
 [profile.release]
 strip = true
-lto = true
+lto = "fat"
+# debug = 1
 codegen-units = 1
+overflow-checks = false
+panic = "abort"
