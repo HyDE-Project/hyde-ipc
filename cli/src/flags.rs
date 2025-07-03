@@ -197,16 +197,42 @@ pub enum Dispatch {
     MoveCursorToCorner { corner: String },
     /// Toggle fullscreen mode
     ToggleFullscreen { mode: String },
-    /// Move window to workspace
+    /// Move window to workspace. Accepts a workspace number (e.g., '5'),
+    /// relative movement (e.g., 'right:2', 'left:1'), or special keywords
+    /// ('previous', 'empty', 'name:<name>').
     MoveToWorkspace { workspace: String },
-    /// Switch to a workspace
+    /// Move window to workspace silently. Accepts a workspace number (e.g., '5'),
+    /// relative movement (e.g., 'right:2', 'left:1'), or special keywords
+    /// ('previous', 'empty', 'name:<name>').
+    MoveToWorkspaceSilent {
+        workspace: String,
+        #[arg(long = "window")]
+        window: Option<String>,
+    },
+    /// Switch to a workspace. Accepts a workspace number (e.g., '5'),
+    /// relative movement (e.g., 'right:2', 'left:1'), or special keywords
+    /// ('previous', 'empty', 'name:<name>').
     Workspace { workspace: String },
     /// Cycle through windows
-    CycleWindow { direction: String },
-    /// Move focus in a direction
-    MoveFocus { direction: String },
-    /// Swap windows in a direction
-    SwapWindow { direction: String },
+    CycleWindow {
+        #[arg()]
+        direction: String,
+    },
+    /// Move focus in a direction (up, down, left, right)
+    MoveFocus {
+        #[arg()]
+        direction: String,
+    },
+    /// Move the active window to a monitor or in a specified direction (up, down, left, right)
+    MoveWindow {
+        #[arg()]
+        target: String,
+    },
+    /// Swap windows in a direction (up, down, left, right)
+    SwapWindow {
+        #[arg()]
+        direction: String,
+    },
     /// Focus a specific window
     FocusWindow { window: String },
     /// Toggle fake fullscreen
