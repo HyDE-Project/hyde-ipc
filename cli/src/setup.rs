@@ -1,9 +1,9 @@
-use std::env;
-use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::{env, fs};
 
-/// Sets up the systemd user service file for hyde-ipc, enables and restarts the service, and checks its status.
+/// Sets up the systemd user service file for hyde-ipc, enables and restarts the service, and checks
+/// its status.
 pub fn setup_service_file() {
     let username = env::var("USER").expect("Could not get $USER");
     let home = env::var("HOME").expect("Could not get $HOME");
@@ -72,14 +72,15 @@ pub fn setup_service_file() {
                     String::from_utf8_lossy(&output.stderr)
                 );
             }
-        }
+        },
         Err(e) => {
             eprintln!("Error checking hyde-ipc.service status: {}", e);
-        }
+        },
     }
 }
 
-/// Ensures the systemd user service for hyde-ipc is set up and running. If not, runs setup_service_file().
+/// Ensures the systemd user service for hyde-ipc is set up and running. If not, runs
+/// setup_service_file().
 pub fn ensure_service_setup() {
     let home = env::var("HOME").expect("Could not get $HOME");
     let systemd_dir = PathBuf::from(&home).join(".config/systemd/user");
@@ -109,7 +110,8 @@ pub fn ensure_service_setup() {
     }
 }
 
-/// Copies the provided config file to the user's global config location and restarts the hyde-ipc service.
+/// Copies the provided config file to the user's global config location and restarts the hyde-ipc
+/// service.
 ///
 /// # Arguments
 ///
@@ -140,14 +142,11 @@ pub fn copy_and_reload_config(config_path: &str) {
     match status_output {
         Ok(output) => {
             if !output.status.success() {
-                eprintln!(
-                    "hyde-ipc status error:\n{}",
-                    String::from_utf8_lossy(&output.stderr)
-                );
+                eprintln!("hyde-ipc status error:\n{}", String::from_utf8_lossy(&output.stderr));
             }
-        }
+        },
         Err(e) => {
             eprintln!("Error checking hyde-ipc status: {}", e);
-        }
+        },
     }
 }

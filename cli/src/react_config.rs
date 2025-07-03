@@ -1,22 +1,17 @@
-use crate::cli::flags::Dispatch as DispatchCmd;
+use crate::flags::Dispatch as DispatchCmd;
 use hyprland::dispatch::Dispatch;
 use hyprland::event_listener::EventListener;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::{fmt, fs};
 
 fn build_dispatch_cmd(dispatcher: &str, args: &[String]) -> Result<DispatchCmd, String> {
     match dispatcher {
-        "Exec" => Ok(DispatchCmd::Exec {
-            command: args.to_vec(),
-        }),
+        "Exec" => Ok(DispatchCmd::Exec { command: args.to_vec() }),
         "KillActiveWindow" => Ok(DispatchCmd::KillActiveWindow),
-        "ToggleFloating" => Ok(DispatchCmd::ToggleFloating {
-            window: args.first().cloned(),
-        }),
+        "ToggleFloating" => Ok(DispatchCmd::ToggleFloating { window: args.first().cloned() }),
         "ToggleSplit" => Ok(DispatchCmd::ToggleSplit),
         "ToggleOpaque" => Ok(DispatchCmd::ToggleOpaque),
         "MoveCursorToCorner" => Ok(DispatchCmd::MoveCursorToCorner {
@@ -76,12 +71,8 @@ fn build_dispatch_cmd(dispatcher: &str, args: &[String]) -> Result<DispatchCmd, 
         "FocusCurrentOrLast" => Ok(DispatchCmd::FocusCurrentOrLast),
         "ForceRendererReload" => Ok(DispatchCmd::ForceRendererReload),
         "Exit" => Ok(DispatchCmd::Exit),
-        "ResizeActive" => Ok(DispatchCmd::ResizeActive {
-            resize_params: args.to_vec(),
-        }),
-        "ResizeWindowPixel" => Ok(DispatchCmd::ResizeWindowPixel {
-            resize_params: args.to_vec(),
-        }),
+        "ResizeActive" => Ok(DispatchCmd::ResizeActive { resize_params: args.to_vec() }),
+        "ResizeWindowPixel" => Ok(DispatchCmd::ResizeWindowPixel { resize_params: args.to_vec() }),
         _ => Err(format!("Unknown dispatcher: {}", dispatcher)),
     }
 }
@@ -252,10 +243,7 @@ impl Reaction {
 
         // Handle legacy format (dispatcher + args fields)
         if let Some(dispatcher) = &self.dispatcher {
-            all_dispatchers.push(Dispatcher {
-                name: dispatcher.clone(),
-                args: self.args.clone(),
-            });
+            all_dispatchers.push(Dispatcher { name: dispatcher.clone(), args: self.args.clone() });
         }
 
         // Add dispatchers from the new format
@@ -287,10 +275,10 @@ impl Reaction {
                     if let Err(e) = Dispatch::call(dispatch_type) {
                         eprintln!("Error executing dispatcher: {}", e);
                     }
-                }
+                },
                 Err(e) => {
                     eprintln!("Error parsing dispatcher: {}", e);
-                }
+                },
             }
         }
 
@@ -313,9 +301,7 @@ pub struct ReactionManager {
 impl ReactionManager {
     /// Create a new reaction manager.
     pub fn new() -> Self {
-        Self {
-            reactions: Vec::new(),
-        }
+        Self { reactions: Vec::new() }
     }
 
     /// Add a reaction to the manager.
@@ -326,10 +312,7 @@ impl ReactionManager {
 
     /// Start listening for events and executing reactions.
     pub fn start(&self) -> Result<(), String> {
-        println!(
-            "Starting reaction manager with {} reactions",
-            self.reactions.len()
-        );
+        println!("Starting reaction manager with {} reactions", self.reactions.len());
 
         let mut event_listener = EventListener::new();
 
@@ -380,7 +363,7 @@ impl ReactionManager {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
-            }
+            },
             EventType::Window(WindowEventType::Closed) => {
                 let has_window_filter = reaction.window_filter.is_some();
                 event_listener.add_window_closed_handler(move |_address| {
@@ -393,7 +376,7 @@ impl ReactionManager {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
-            }
+            },
             EventType::Window(WindowEventType::Moved) => {
                 let has_window_filter = reaction.window_filter.is_some();
                 event_listener.add_window_moved_handler(move |_move_data| {
@@ -406,7 +389,7 @@ impl ReactionManager {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
-            }
+            },
             EventType::Window(WindowEventType::Active) => {
                 event_listener.add_active_window_changed_handler(move |data| {
                     // Check if we have window data and need to filter
@@ -437,84 +420,84 @@ impl ReactionManager {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
-            }
+            },
             EventType::Workspace(WorkspaceEventType::Changed) => {
                 event_listener.add_workspace_changed_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
-            }
+            },
             EventType::Workspace(WorkspaceEventType::Added) => {
                 event_listener.add_workspace_added_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
-            }
+            },
             EventType::Workspace(WorkspaceEventType::Deleted) => {
                 event_listener.add_workspace_deleted_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
-            }
+            },
             EventType::Monitor => {
                 event_listener.add_active_monitor_changed_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
-            }
+            },
             EventType::Float => {
                 event_listener.add_float_state_changed_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
-            }
+            },
             EventType::Fullscreen => {
                 event_listener.add_fullscreen_state_changed_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
-            }
+            },
             EventType::Layout => {
                 event_listener.add_layout_changed_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
-            }
+            },
             EventType::Group(GroupEventType::Toggled) => {
                 event_listener.add_group_toggled_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
-            }
+            },
             EventType::Group(GroupEventType::MovedIn) => {
                 event_listener.add_window_moved_into_group_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
-            }
+            },
             EventType::Group(GroupEventType::MovedOut) => {
                 event_listener.add_window_moved_out_of_group_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
-            }
+            },
             EventType::Config => {
                 event_listener.add_config_reloaded_handler(move || {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
                         eprintln!("Error executing reaction: {}", e);
                     }
                 });
-            }
+            },
         }
 
         Ok(())
@@ -551,7 +534,7 @@ impl ReactConfig {
                 serde_json::from_str(&content)
                     .or_else(|_| toml::from_str(&content))
                     .map_err(|e| format!("Failed to parse config file: {}", e))
-            }
+            },
         }
     }
 

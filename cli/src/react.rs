@@ -1,5 +1,6 @@
-use crate::cli::dispatch::parse_dispatcher;
-use crate::cli::flags::Dispatch as DispatchCmd;
+use crate::dispatch::parse_dispatcher;
+use crate::flags::Dispatch as DispatchCmd;
+
 use hyprland::dispatch::Dispatch;
 use hyprland::event_listener::EventListener;
 use std::sync::Arc;
@@ -7,13 +8,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 fn build_dispatch_cmd(dispatcher: &str, args: &[String]) -> Result<DispatchCmd, String> {
     match dispatcher {
-        "Exec" => Ok(DispatchCmd::Exec {
-            command: args.to_vec(),
-        }),
+        "Exec" => Ok(DispatchCmd::Exec { command: args.to_vec() }),
         "KillActiveWindow" => Ok(DispatchCmd::KillActiveWindow),
-        "ToggleFloating" => Ok(DispatchCmd::ToggleFloating {
-            window: args.first().cloned(),
-        }),
+        "ToggleFloating" => Ok(DispatchCmd::ToggleFloating { window: args.first().cloned() }),
         "ToggleSplit" => Ok(DispatchCmd::ToggleSplit),
         "ToggleOpaque" => Ok(DispatchCmd::ToggleOpaque),
         "MoveCursorToCorner" => Ok(DispatchCmd::MoveCursorToCorner {
@@ -73,12 +70,8 @@ fn build_dispatch_cmd(dispatcher: &str, args: &[String]) -> Result<DispatchCmd, 
         "FocusCurrentOrLast" => Ok(DispatchCmd::FocusCurrentOrLast),
         "ForceRendererReload" => Ok(DispatchCmd::ForceRendererReload),
         "Exit" => Ok(DispatchCmd::Exit),
-        "ResizeActive" => Ok(DispatchCmd::ResizeActive {
-            resize_params: args.to_vec(),
-        }),
-        "ResizeWindowPixel" => Ok(DispatchCmd::ResizeWindowPixel {
-            resize_params: args.to_vec(),
-        }),
+        "ResizeActive" => Ok(DispatchCmd::ResizeActive { resize_params: args.to_vec() }),
+        "ResizeWindowPixel" => Ok(DispatchCmd::ResizeWindowPixel { resize_params: args.to_vec() }),
         _ => Err(format!("Unknown dispatcher: {}", dispatcher)),
     }
 }
@@ -100,10 +93,7 @@ pub fn sync_react(
     args: Vec<String>,
     max_reactions: usize,
 ) -> hyprland::Result<()> {
-    println!(
-        "Reacting to {} events with dispatcher: {}",
-        event, dispatcher
-    );
+    println!("Reacting to {} events with dispatcher: {}", event, dispatcher);
     if let Some(filter) = &filter {
         println!("Using window filter: {}", filter);
     }
@@ -115,7 +105,7 @@ pub fn sync_react(
         Err(e) => {
             eprintln!("Error parsing dispatcher: {}", e);
             return Err(hyprland::shared::HyprError::Other(e));
-        }
+        },
     };
 
     let _dispatch_type = match parse_dispatcher(dispatch_cmd) {
@@ -123,7 +113,7 @@ pub fn sync_react(
         Err(e) => {
             eprintln!("Error parsing dispatcher: {}", e);
             return Err(hyprland::shared::HyprError::Other(e));
-        }
+        },
     };
 
     let mut event_listener = EventListener::new();
@@ -204,7 +194,7 @@ fn setup_event_handlers(
                                 max_reactions,
                             );
                         });
-                    }
+                    },
                     "closed" => {
                         let dispatcher_clone = dispatcher.clone();
                         let args_clone = args.clone();
@@ -217,7 +207,7 @@ fn setup_event_handlers(
                                 max_reactions,
                             );
                         });
-                    }
+                    },
                     "moved" => {
                         let dispatcher_clone = dispatcher.clone();
                         let args_clone = args.clone();
@@ -230,7 +220,7 @@ fn setup_event_handlers(
                                 max_reactions,
                             );
                         });
-                    }
+                    },
                     "active" => {
                         let dispatcher_clone = dispatcher.clone();
                         let args_clone = args.clone();
@@ -272,14 +262,14 @@ fn setup_event_handlers(
                                 max_reactions,
                             );
                         });
-                    }
+                    },
                     _ => {
                         eprintln!("Unknown window subtype: {}", subtype);
                         return Err(hyprland::shared::HyprError::Other(format!(
                             "Unknown window subtype: {}",
                             subtype
                         )));
-                    }
+                    },
                 }
             } else {
                 // Add handlers for all window events
@@ -322,7 +312,8 @@ fn setup_event_handlers(
                 let args_clone = args.clone();
                 let count_clone = Arc::clone(&count);
                 event_listener.add_window_moved_handler(move |_| {
-                    // For window move events, we could match on window_address, but will skip for simplicity
+                    // For window move events, we could match on window_address, but will skip for
+                    // simplicity
                     handle_event(&dispatcher_clone, &args_clone, &count_clone, max_reactions);
                 });
 
@@ -359,7 +350,7 @@ fn setup_event_handlers(
                     handle_event(&dispatcher_clone, &args_clone, &count_clone, max_reactions);
                 });
             }
-        }
+        },
         "workspace" => {
             if let Some(subtype) = subtype {
                 match subtype.to_lowercase().as_str() {
@@ -375,7 +366,7 @@ fn setup_event_handlers(
                                 max_reactions,
                             );
                         });
-                    }
+                    },
                     "added" => {
                         let dispatcher_clone = dispatcher.clone();
                         let args_clone = args.clone();
@@ -388,7 +379,7 @@ fn setup_event_handlers(
                                 max_reactions,
                             );
                         });
-                    }
+                    },
                     "deleted" => {
                         let dispatcher_clone = dispatcher.clone();
                         let args_clone = args.clone();
@@ -401,14 +392,14 @@ fn setup_event_handlers(
                                 max_reactions,
                             );
                         });
-                    }
+                    },
                     _ => {
                         eprintln!("Unknown workspace subtype: {}", subtype);
                         return Err(hyprland::shared::HyprError::Other(format!(
                             "Unknown workspace subtype: {}",
                             subtype
                         )));
-                    }
+                    },
                 }
             } else {
                 // Add handlers for all workspace events
@@ -433,7 +424,7 @@ fn setup_event_handlers(
                     handle_event(&dispatcher_clone, &args_clone, &count_clone, max_reactions);
                 });
             }
-        }
+        },
         "monitor" => {
             let dispatcher_clone = dispatcher.clone();
             let args_clone = args.clone();
@@ -441,7 +432,7 @@ fn setup_event_handlers(
             event_listener.add_active_monitor_changed_handler(move |_| {
                 handle_event(&dispatcher_clone, &args_clone, &count_clone, max_reactions);
             });
-        }
+        },
         "float" => {
             let dispatcher_clone = dispatcher.clone();
             let args_clone = args.clone();
@@ -449,7 +440,7 @@ fn setup_event_handlers(
             event_listener.add_float_state_changed_handler(move |_| {
                 handle_event(&dispatcher_clone, &args_clone, &count_clone, max_reactions);
             });
-        }
+        },
         "fullscreen" => {
             let dispatcher_clone = dispatcher.clone();
             let args_clone = args.clone();
@@ -457,7 +448,7 @@ fn setup_event_handlers(
             event_listener.add_fullscreen_state_changed_handler(move |_| {
                 handle_event(&dispatcher_clone, &args_clone, &count_clone, max_reactions);
             });
-        }
+        },
         "layout" => {
             let dispatcher_clone = dispatcher.clone();
             let args_clone = args.clone();
@@ -465,7 +456,7 @@ fn setup_event_handlers(
             event_listener.add_layout_changed_handler(move |_| {
                 handle_event(&dispatcher_clone, &args_clone, &count_clone, max_reactions);
             });
-        }
+        },
         "group" => {
             if let Some(subtype) = subtype {
                 match subtype.to_lowercase().as_str() {
@@ -481,7 +472,7 @@ fn setup_event_handlers(
                                 max_reactions,
                             );
                         });
-                    }
+                    },
                     "moved_in" => {
                         let dispatcher_clone = dispatcher.clone();
                         let args_clone = args.clone();
@@ -494,7 +485,7 @@ fn setup_event_handlers(
                                 max_reactions,
                             );
                         });
-                    }
+                    },
                     "moved_out" => {
                         let dispatcher_clone = dispatcher.clone();
                         let args_clone = args.clone();
@@ -507,14 +498,14 @@ fn setup_event_handlers(
                                 max_reactions,
                             );
                         });
-                    }
+                    },
                     _ => {
                         eprintln!("Unknown group subtype: {}", subtype);
                         return Err(hyprland::shared::HyprError::Other(format!(
                             "Unknown group subtype: {}",
                             subtype
                         )));
-                    }
+                    },
                 }
             } else {
                 // Add handlers for all group events
@@ -539,7 +530,7 @@ fn setup_event_handlers(
                     handle_event(&dispatcher_clone, &args_clone, &count_clone, max_reactions);
                 });
             }
-        }
+        },
         "config" => {
             let dispatcher_clone = dispatcher.clone();
             let args_clone = args.clone();
@@ -547,32 +538,28 @@ fn setup_event_handlers(
             event_listener.add_config_reloaded_handler(move || {
                 handle_event(&dispatcher_clone, &args_clone, &count_clone, max_reactions);
             });
-        }
+        },
         _ => {
             eprintln!("Unknown event type: {}", event);
             return Err(hyprland::shared::HyprError::Other(format!(
                 "Unknown event type: {}",
                 event
             )));
-        }
+        },
     }
 
     Ok(())
 }
 
 fn handle_event(dispatcher: &str, args: &[String], count: &Arc<AtomicUsize>, max_reactions: usize) {
-    let current = if max_reactions > 0 {
-        count.fetch_add(1, Ordering::SeqCst) + 1
-    } else {
-        0
-    };
+    let current = if max_reactions > 0 { count.fetch_add(1, Ordering::SeqCst) + 1 } else { 0 };
 
     let dispatch_cmd = match build_dispatch_cmd(dispatcher, args) {
         Ok(cmd) => cmd,
         Err(e) => {
             eprintln!("Error parsing dispatcher: {}", e);
             return;
-        }
+        },
     };
 
     match parse_dispatcher(dispatch_cmd) {
@@ -585,15 +572,12 @@ fn handle_event(dispatcher: &str, args: &[String], count: &Arc<AtomicUsize>, max
             }
 
             if max_reactions > 0 && current >= max_reactions {
-                println!(
-                    "Reached maximum number of reactions ({}). Exiting...",
-                    max_reactions
-                );
+                println!("Reached maximum number of reactions ({}). Exiting...", max_reactions);
                 std::process::exit(0);
             }
-        }
+        },
         Err(e) => {
             eprintln!("Error parsing dispatcher: {}", e);
-        }
+        },
     }
 }

@@ -1,4 +1,4 @@
-use crate::cli::flags::Dispatch as DispatchCmd;
+use crate::flags::Dispatch as DispatchCmd;
 use hyprland::dispatch::{
     Corner, CycleDirection, Direction, Dispatch, DispatchType, FullscreenType, Position,
     WindowIdentifier, WorkspaceIdentifierWithSpecial,
@@ -15,10 +15,10 @@ pub fn sync_dispatch(command: DispatchCmd) {
             if let Err(e) = Dispatch::call(dispatch_type) {
                 eprintln!("Error: {}", e);
             }
-        }
+        },
         Err(e) => {
             eprintln!("Error: {}", e);
-        }
+        },
     }
 }
 
@@ -31,14 +31,14 @@ pub async fn async_dispatch(command: DispatchCmd) {
         Ok(dispatch_type) => match Dispatch::call_async(dispatch_type).await {
             Ok(_) => {
                 println!("Async dispatch completed successfully");
-            }
+            },
             Err(e) => {
                 eprintln!("Error: {}", e);
-            }
+            },
         },
         Err(e) => {
             eprintln!("Error: {}", e);
-        }
+        },
     }
 }
 
@@ -81,7 +81,7 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
             // Use a static string to avoid lifetime issues
             let program_static = Box::leak(program.into_boxed_str());
             Ok(DispatchType::Exec(program_static))
-        }
+        },
         DispatchCmd::KillActiveWindow => Ok(DispatchType::KillActiveWindow),
         DispatchCmd::ToggleFloating { window } => {
             if window.is_none() {
@@ -92,7 +92,7 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
                 parse_window_identifier(&identifier)
                     .map(|win_id| DispatchType::ToggleFloating(Some(win_id)))
             }
-        }
+        },
         DispatchCmd::ToggleSplit => Ok(DispatchType::ToggleSplit),
         DispatchCmd::ToggleOpaque => Ok(DispatchType::ToggleOpaque),
         DispatchCmd::MoveCursorToCorner { corner } => match corner.as_str() {
@@ -116,15 +116,9 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
                     None,
                 ))
             } else if workspace == "previous" {
-                Ok(DispatchType::MoveToWorkspace(
-                    WorkspaceIdentifierWithSpecial::Previous,
-                    None,
-                ))
+                Ok(DispatchType::MoveToWorkspace(WorkspaceIdentifierWithSpecial::Previous, None))
             } else if workspace == "empty" {
-                Ok(DispatchType::MoveToWorkspace(
-                    WorkspaceIdentifierWithSpecial::Empty,
-                    None,
-                ))
+                Ok(DispatchType::MoveToWorkspace(WorkspaceIdentifierWithSpecial::Empty, None))
             } else if let Some(name) = workspace.strip_prefix("name:") {
                 // Use a static string to avoid lifetime issues
                 let name_static = Box::leak(name.to_string().into_boxed_str());
@@ -135,31 +129,23 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
             } else {
                 Err(format!("Unknown workspace identifier: {}", workspace))
             }
-        }
+        },
         DispatchCmd::Workspace { workspace } => {
             // Parse the first argument as a relative workspace number
             if let Ok(rel_num) = workspace.parse::<i32>() {
-                Ok(DispatchType::Workspace(
-                    WorkspaceIdentifierWithSpecial::Relative(rel_num),
-                ))
+                Ok(DispatchType::Workspace(WorkspaceIdentifierWithSpecial::Relative(rel_num)))
             } else if workspace == "previous" {
-                Ok(DispatchType::Workspace(
-                    WorkspaceIdentifierWithSpecial::Previous,
-                ))
+                Ok(DispatchType::Workspace(WorkspaceIdentifierWithSpecial::Previous))
             } else if workspace == "empty" {
-                Ok(DispatchType::Workspace(
-                    WorkspaceIdentifierWithSpecial::Empty,
-                ))
+                Ok(DispatchType::Workspace(WorkspaceIdentifierWithSpecial::Empty))
             } else if let Some(name) = workspace.strip_prefix("name:") {
                 // Use a static string to avoid lifetime issues
                 let name_static = Box::leak(name.to_string().into_boxed_str());
-                Ok(DispatchType::Workspace(
-                    WorkspaceIdentifierWithSpecial::Name(name_static),
-                ))
+                Ok(DispatchType::Workspace(WorkspaceIdentifierWithSpecial::Name(name_static)))
             } else {
                 Err(format!("Unknown workspace identifier: {}", workspace))
             }
-        }
+        },
         DispatchCmd::CycleWindow { direction } => match direction.as_str() {
             "Next" => Ok(DispatchType::CycleWindow(CycleDirection::Next)),
             "Previous" => Ok(DispatchType::CycleWindow(CycleDirection::Previous)),
@@ -181,7 +167,7 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
         },
         DispatchCmd::FocusWindow { window } => {
             parse_window_identifier(&window).map(DispatchType::FocusWindow)
-        }
+        },
         DispatchCmd::ToggleFakeFullscreen => Ok(DispatchType::ToggleFakeFullscreen),
         DispatchCmd::TogglePseudo => Ok(DispatchType::TogglePseudo),
         DispatchCmd::TogglePin => Ok(DispatchType::TogglePin),
@@ -194,12 +180,14 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
         DispatchCmd::ResizeActive { resize_params } => {
             let args = resize_params;
             if args.is_empty() {
-                return Err("ResizeActive requires a position argument: either <dx> <dy> or exact <width> <height>".to_string());
+                return Err("ResizeActive requires a position argument: either <dx> <dy> or \
+                            exact <width> <height>"
+                    .to_string());
             }
             if args[0] == "exact" {
                 if args.len() != 3 {
                     return Err(
-                        "ResizeActive exact requires two arguments: <width> <height>".to_string(),
+                        "ResizeActive exact requires two arguments: <width> <height>".to_string()
                     );
                 }
                 let width = args[1]
@@ -218,20 +206,23 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
                     .map_err(|_| format!("Invalid dy: {}", args[1]))?;
                 Ok(DispatchType::ResizeActive(Position::Delta(dx, dy)))
             } else {
-                Err("ResizeActive requires either two arguments (<dx> <dy>) or 'exact <width> <height>'".to_string())
+                Err("ResizeActive requires either two arguments (<dx> <dy>) or 'exact <width> \
+                     <height>'"
+                    .to_string())
             }
-        }
+        },
         DispatchCmd::ResizeWindowPixel { resize_params } => {
             let args = resize_params;
             if args.is_empty() {
-                return Err("ResizeWindowPixel requires a position and window argument: either <dx> <dy> <win> or exact <width> <height> <win>".to_string());
+                return Err("ResizeWindowPixel requires a position and window argument: either \
+                            <dx> <dy> <win> or exact <width> <height> <win>"
+                    .to_string());
             }
             if args[0] == "exact" {
                 if args.len() != 4 {
-                    return Err(
-                        "ResizeWindowPixel exact requires three arguments: <width> <height> <win>"
-                            .to_string(),
-                    );
+                    return Err("ResizeWindowPixel exact requires three arguments: <width> \
+                                <height> <win>"
+                        .to_string());
                 }
                 let width = args[1]
                     .parse::<i16>()
@@ -240,10 +231,7 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
                     .parse::<i16>()
                     .map_err(|_| format!("Invalid height: {}", args[2]))?;
                 let win_id = parse_window_identifier(&args[3])?;
-                Ok(DispatchType::ResizeWindowPixel(
-                    Position::Exact(width, height),
-                    win_id,
-                ))
+                Ok(DispatchType::ResizeWindowPixel(Position::Exact(width, height), win_id))
             } else if args.len() == 3 {
                 let dx = args[0]
                     .parse::<i16>()
@@ -252,13 +240,12 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
                     .parse::<i16>()
                     .map_err(|_| format!("Invalid dy: {}", args[1]))?;
                 let win_id = parse_window_identifier(&args[2])?;
-                Ok(DispatchType::ResizeWindowPixel(
-                    Position::Delta(dx, dy),
-                    win_id,
-                ))
+                Ok(DispatchType::ResizeWindowPixel(Position::Delta(dx, dy), win_id))
             } else {
-                Err("ResizeWindowPixel requires either three arguments (<dx> <dy> <win>) or 'exact <width> <height> <win>'".to_string())
+                Err("ResizeWindowPixel requires either three arguments (<dx> <dy> <win>) or \
+                     'exact <width> <height> <win>'"
+                    .to_string())
             }
-        }
+        },
     }
 }

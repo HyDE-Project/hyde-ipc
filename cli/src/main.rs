@@ -13,11 +13,8 @@ mod setup;
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 use flags::{Cli, Commands, DispatchCommand};
-use std::env;
-use std::fs;
-use std::io;
 use std::path::PathBuf;
-use std::process;
+use std::{env, fs, io, process};
 
 fn print_usage_and_exit() {
     Cli::command().print_help().unwrap();
@@ -128,13 +125,7 @@ pub fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Keyword {
-            r#async,
-            get,
-            set,
-            keyword,
-            value,
-        } => {
+        Commands::Keyword { r#async, get, set, keyword, value } => {
             if set && value.is_none() {
                 eprintln!("Error: --set requires a value");
                 print_usage_and_exit();
@@ -148,7 +139,7 @@ pub fn main() {
             } else {
                 keyword::sync_keyword(get, set, keyword, value);
             }
-        }
+        },
         Commands::Dispatch(dispatch_command) => {
             if dispatch_command.list_dispatchers {
                 print_dispatchers_list();
@@ -174,7 +165,7 @@ pub fn main() {
                             Ok(_) => (),
                             Err(_) => {
                                 eprintln!("Warning: Async task was dropped before completion")
-                            }
+                            },
                         }
                     });
                 } else {
@@ -185,17 +176,13 @@ pub fn main() {
                     .print_help()
                     .unwrap();
             }
-        }
-        Commands::Listen {
-            filter,
-            max_events,
-            json,
-        } => {
+        },
+        Commands::Listen { filter, max_events, json } => {
             if let Err(e) = listen::listen(filter, max_events, json) {
                 eprintln!("Error: {}", e);
                 process::exit(1);
             }
-        }
+        },
         Commands::React {
             r#async,
             config,
@@ -233,13 +220,8 @@ pub fn main() {
                 eprintln!("Error: {}", e);
                 process::exit(1);
             }
-        }
-        Commands::Global {
-            config_path,
-            setup,
-            kill,
-            restart,
-        } => {
+        },
+        Commands::Global { config_path, setup, kill, restart } => {
             if kill {
                 let status = std::process::Command::new("systemctl")
                     .args(["--user", "stop", "hyde-ipc.service"])
@@ -248,15 +230,15 @@ pub fn main() {
                     Ok(s) if s.success() => {
                         println!("stopped successfully.");
                         std::process::exit(0);
-                    }
+                    },
                     Ok(s) => {
                         eprintln!("Failed to stop global reactions (exit code: {}).", s);
                         std::process::exit(1);
-                    }
+                    },
                     Err(e) => {
                         eprintln!("Error stopping hyde-ipc.service: {}", e);
                         std::process::exit(1);
-                    }
+                    },
                 }
             }
             if restart {
@@ -267,15 +249,15 @@ pub fn main() {
                     Ok(s) if s.success() => {
                         println!("restarted successfully.");
                         std::process::exit(0);
-                    }
+                    },
                     Ok(s) => {
                         eprintln!("Failed to restart global reactions (exit code: {}).", s);
                         std::process::exit(1);
-                    }
+                    },
                     Err(e) => {
                         eprintln!("Error restarting hyde-ipc.service: {}", e);
                         std::process::exit(1);
-                    }
+                    },
                 }
             }
             if setup {
@@ -306,14 +288,14 @@ pub fn main() {
                     std::process::exit(1);
                 }
             }
-        }
+        },
         Commands::Setup => {
             setup::setup_service_file();
-        }
+        },
         Commands::GenerateCompletion { shell } => {
             let mut cmd = Cli::command();
             let bin_name = cmd.get_name().to_string();
             generate(shell, &mut cmd, bin_name, &mut io::stdout());
-        }
+        },
     }
 }

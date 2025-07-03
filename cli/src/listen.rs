@@ -193,10 +193,7 @@ pub fn listen(filter: Option<String>, max_events: usize, json: bool) -> hyprland
                     })
                 );
             } else {
-                println!(
-                    "[WORKSPACE] Workspace added - name: {}, id: {}",
-                    data.name, data.id
-                );
+                println!("[WORKSPACE] Workspace added - name: {}, id: {}", data.name, data.id);
             }
             increment_count(&count_clone, max_events);
         }
@@ -219,10 +216,7 @@ pub fn listen(filter: Option<String>, max_events: usize, json: bool) -> hyprland
                     })
                 );
             } else {
-                println!(
-                    "[WORKSPACE] Workspace deleted - name: {}, id: {}",
-                    data.name, data.id
-                );
+                println!("[WORKSPACE] Workspace deleted - name: {}, id: {}", data.name, data.id);
             }
             increment_count(&count_clone, max_events);
         }

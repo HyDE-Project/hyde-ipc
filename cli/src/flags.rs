@@ -1,6 +1,7 @@
 //! CLI argument definitions for hyde-ipc.
 //!
-//! This module defines the command-line interface using clap, including all subcommands and their options.
+//! This module defines the command-line interface using clap, including all subcommands and their
+//! options.
 
 use clap::{ArgGroup, Parser, Subcommand};
 use clap_complete::Shell;
