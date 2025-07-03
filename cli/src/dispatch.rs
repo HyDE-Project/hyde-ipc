@@ -13,11 +13,11 @@ pub fn sync_dispatch(command: DispatchCmd) {
     match parse_dispatcher(command) {
         Ok(dispatch_type) => {
             if let Err(e) = Dispatch::call(dispatch_type) {
-                eprintln!("Error: {}", e);
+                eprintln!("Error: {e}");
             }
         },
         Err(e) => {
-            eprintln!("Error: {}", e);
+            eprintln!("Error: {e}");
         },
     }
 }
@@ -33,11 +33,11 @@ pub async fn async_dispatch(command: DispatchCmd) {
                 println!("Async dispatch completed successfully");
             },
             Err(e) => {
-                eprintln!("Error: {}", e);
+                eprintln!("Error: {e}");
             },
         },
         Err(e) => {
-            eprintln!("Error: {}", e);
+            eprintln!("Error: {e}");
         },
     }
 }
@@ -54,7 +54,7 @@ fn parse_window_identifier(identifier: &str) -> Result<WindowIdentifier<'static>
         if let Ok(pid) = pid_str.parse::<u32>() {
             Ok(WindowIdentifier::ProcessId(pid))
         } else {
-            Err(format!("Invalid PID: {}", pid_str))
+            Err(format!("Invalid PID: {pid_str}"))
         }
     } else if let Some(addr_str) = identifier.strip_prefix("address:") {
         Ok(WindowIdentifier::Address(Address::new(addr_str)))
@@ -84,13 +84,14 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
         },
         DispatchCmd::KillActiveWindow => Ok(DispatchType::KillActiveWindow),
         DispatchCmd::ToggleFloating { window } => {
-            if window.is_none() {
-                Ok(DispatchType::ToggleFloating(None))
-            } else {
-                // Parse window identifier
-                let identifier = window.unwrap();
-                parse_window_identifier(&identifier)
-                    .map(|win_id| DispatchType::ToggleFloating(Some(win_id)))
+            match window.is_none() {
+                true => Ok(DispatchType::ToggleFloating(None)),
+                false => {
+                    // Parse window identifier
+                    let identifier = window.unwrap();
+                    parse_window_identifier(&identifier)
+                        .map(|win_id| DispatchType::ToggleFloating(Some(win_id)))
+                },
             }
         },
         DispatchCmd::ToggleSplit => Ok(DispatchType::ToggleSplit),
@@ -100,13 +101,13 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
             "TopRight" => Ok(DispatchType::MoveCursorToCorner(Corner::TopRight)),
             "BottomLeft" => Ok(DispatchType::MoveCursorToCorner(Corner::BottomLeft)),
             "BottomRight" => Ok(DispatchType::MoveCursorToCorner(Corner::BottomRight)),
-            _ => Err(format!("Unknown corner: {}", corner)),
+            _ => Err(format!("Unknown corner: {corner}")),
         },
         DispatchCmd::ToggleFullscreen { mode } => match mode.as_str() {
             "Real" => Ok(DispatchType::ToggleFullscreen(FullscreenType::Real)),
             "Maximize" => Ok(DispatchType::ToggleFullscreen(FullscreenType::Maximize)),
             "NoParam" => Ok(DispatchType::ToggleFullscreen(FullscreenType::NoParam)),
-            _ => Err(format!("Unknown fullscreen type: {}", mode)),
+            _ => Err(format!("Unknown fullscreen type: {mode}")),
         },
         DispatchCmd::MoveToWorkspace { workspace } => {
             let workspace_id = if let Ok(id) = workspace.parse::<i32>() {
@@ -114,12 +115,12 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
             } else if let Some(num_str) = workspace.strip_prefix("right:") {
                 let num = num_str
                     .parse::<i32>()
-                    .map_err(|_| format!("Invalid number for right: {}", num_str))?;
+                    .map_err(|_| format!("Invalid number for right: {num_str}"))?;
                 WorkspaceIdentifierWithSpecial::Relative(num)
             } else if let Some(num_str) = workspace.strip_prefix("left:") {
                 let num = num_str
                     .parse::<i32>()
-                    .map_err(|_| format!("Invalid number for left: {}", num_str))?;
+                    .map_err(|_| format!("Invalid number for left: {num_str}"))?;
                 WorkspaceIdentifierWithSpecial::Relative(-num)
             } else if workspace == "previous" {
                 WorkspaceIdentifierWithSpecial::Previous
@@ -129,7 +130,7 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
                 let name_static = Box::leak(name.to_string().into_boxed_str());
                 WorkspaceIdentifierWithSpecial::Name(name_static)
             } else {
-                return Err(format!("Unknown workspace identifier: {}", workspace));
+                return Err(format!("Unknown workspace identifier: {workspace}"));
             };
             Ok(DispatchType::MoveToWorkspace(workspace_id, None))
         },
@@ -139,12 +140,12 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
             } else if let Some(num_str) = workspace.strip_prefix("right:") {
                 let num = num_str
                     .parse::<i32>()
-                    .map_err(|_| format!("Invalid number for right: {}", num_str))?;
+                    .map_err(|_| format!("Invalid number for right: {num_str}"))?;
                 WorkspaceIdentifierWithSpecial::Relative(num)
             } else if let Some(num_str) = workspace.strip_prefix("left:") {
                 let num = num_str
                     .parse::<i32>()
-                    .map_err(|_| format!("Invalid number for left: {}", num_str))?;
+                    .map_err(|_| format!("Invalid number for left: {num_str}"))?;
                 WorkspaceIdentifierWithSpecial::Relative(-num)
             } else if workspace == "previous" {
                 WorkspaceIdentifierWithSpecial::Previous
@@ -154,7 +155,7 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
                 let name_static = Box::leak(name.to_string().into_boxed_str());
                 WorkspaceIdentifierWithSpecial::Name(name_static)
             } else {
-                return Err(format!("Unknown workspace identifier: {}", workspace));
+                return Err(format!("Unknown workspace identifier: {workspace}"));
             };
 
             let window_id =
@@ -168,12 +169,12 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
             } else if let Some(num_str) = workspace.strip_prefix("right:") {
                 let num = num_str
                     .parse::<i32>()
-                    .map_err(|_| format!("Invalid number for right: {}", num_str))?;
+                    .map_err(|_| format!("Invalid number for right: {num_str}"))?;
                 WorkspaceIdentifierWithSpecial::Relative(num)
             } else if let Some(num_str) = workspace.strip_prefix("left:") {
                 let num = num_str
                     .parse::<i32>()
-                    .map_err(|_| format!("Invalid number for left: {}", num_str))?;
+                    .map_err(|_| format!("Invalid number for left: {num_str}"))?;
                 WorkspaceIdentifierWithSpecial::Relative(-num)
             } else if workspace == "previous" {
                 WorkspaceIdentifierWithSpecial::Previous
@@ -183,28 +184,28 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
                 let name_static = Box::leak(name.to_string().into_boxed_str());
                 WorkspaceIdentifierWithSpecial::Name(name_static)
             } else {
-                return Err(format!("Unknown workspace identifier: {}", workspace));
+                return Err(format!("Unknown workspace identifier: {workspace}"));
             };
             Ok(DispatchType::Workspace(workspace_id))
         },
         DispatchCmd::CycleWindow { direction } => match direction.to_lowercase().as_str() {
             "next" => Ok(DispatchType::CycleWindow(CycleDirection::Next)),
             "previous" => Ok(DispatchType::CycleWindow(CycleDirection::Previous)),
-            _ => Err(format!("Unknown cycle direction: {}", direction)),
+            _ => Err(format!("Unknown cycle direction: {direction}")),
         },
         DispatchCmd::MoveFocus { direction } => match direction.to_lowercase().as_str() {
             "up" => Ok(DispatchType::MoveFocus(Direction::Up)),
             "down" => Ok(DispatchType::MoveFocus(Direction::Down)),
             "left" => Ok(DispatchType::MoveFocus(Direction::Left)),
             "right" => Ok(DispatchType::MoveFocus(Direction::Right)),
-            _ => Err(format!("Unknown direction: {}", direction)),
+            _ => Err(format!("Unknown direction: {direction}")),
         },
         DispatchCmd::SwapWindow { direction } => match direction.to_lowercase().as_str() {
             "up" => Ok(DispatchType::SwapWindow(Direction::Up)),
             "down" => Ok(DispatchType::SwapWindow(Direction::Down)),
             "left" => Ok(DispatchType::SwapWindow(Direction::Left)),
             "right" => Ok(DispatchType::SwapWindow(Direction::Right)),
-            _ => Err(format!("Unknown direction: {}", direction)),
+            _ => Err(format!("Unknown direction: {direction}")),
         },
         DispatchCmd::MoveWindow { target } => {
             if let Some(monitor_name) = target.strip_prefix("mon:") {
@@ -235,10 +236,10 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
                     "right" => {
                         Ok(DispatchType::MoveWindow(WindowMove::Direction(Direction::Right)))
                     },
-                    _ => Err(format!("Unknown direction for MoveWindow: {}", dir_str)),
+                    _ => Err(format!("Unknown direction for MoveWindow: {dir_str}")),
                 }
             } else {
-                Err(format!("Unknown target for MoveWindow: {}", target))
+                Err(format!("Unknown target for MoveWindow: {target}"))
             }
         },
         DispatchCmd::FocusWindow { window } => {
