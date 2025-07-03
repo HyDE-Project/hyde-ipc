@@ -19,31 +19,30 @@ pub fn setup_service_file() {
     let hyde_ipc_path = String::from_utf8_lossy(&which_output.stdout)
         .trim()
         .to_string();
-    let config_path = format!("/home/{}/.local/share/hyde-ipc/config.toml", username);
+    let config_path = format!("/home/{username}/.local/share/hyde-ipc/config.toml");
     let service_content = format!(
         r#"[Unit]
             Description=hyde-ipc user service
             After=default.target
 
             [Service]
-            ExecStart={} react -c {}
+            ExecStart={hyde_ipc_path} react -c {config_path}
             Restart=always
             StandardOutput=journal
             StandardError=journal
 
             [Install]
             WantedBy=default.target
-        "#,
-        hyde_ipc_path, config_path
+        "#
     );
     let systemd_dir = PathBuf::from(&home).join(".config/systemd/user");
     if let Err(e) = fs::create_dir_all(&systemd_dir) {
-        eprintln!("Error creating systemd user dir: {}", e);
+        eprintln!("Error creating systemd user dir: {e}");
         std::process::exit(1);
     }
     let service_path = systemd_dir.join("hyde-ipc.service");
     if let Err(e) = fs::write(&service_path, service_content) {
-        eprintln!("Error writing service file: {}", e);
+        eprintln!("Error writing service file: {e}");
         std::process::exit(1);
     }
     println!("Done!");
@@ -51,14 +50,14 @@ pub fn setup_service_file() {
         .args(["--user", "enable", "hyde-ipc.service"])
         .status();
     if let Err(e) = enable_status {
-        eprintln!("Error enabling hyde-ipc.service: {}", e);
+        eprintln!("Error enabling hyde-ipc.service: {e}");
         std::process::exit(1);
     }
     let restart_status = Command::new("systemctl")
         .args(["--user", "restart", "hyde-ipc.service"])
         .status();
     if let Err(e) = restart_status {
-        eprintln!("Error restarting hyde-ipc.service: {}", e);
+        eprintln!("Error restarting hyde-ipc.service: {e}");
         std::process::exit(1);
     }
     let status_output = Command::new("systemctl")
@@ -74,7 +73,7 @@ pub fn setup_service_file() {
             }
         },
         Err(e) => {
-            eprintln!("Error checking hyde-ipc.service status: {}", e);
+            eprintln!("Error checking hyde-ipc.service status: {e}");
         },
     }
 }
@@ -121,19 +120,19 @@ pub fn copy_and_reload_config(config_path: &str) {
     let dest_dir = PathBuf::from(&home).join(".local/share/hyde-ipc");
     let dest = dest_dir.join("config.toml");
     if let Err(e) = fs::create_dir_all(&dest_dir) {
-        eprintln!("Error setting up config directory: {}", e);
+        eprintln!("Error setting up config directory: {e}");
         std::process::exit(1);
     }
     if let Err(e) = fs::copy(config_path, &dest) {
-        eprintln!("Error reading config file: {}", e);
+        eprintln!("Error reading config file: {e}");
         std::process::exit(1);
     }
-    println!("Done! {} is set as global ", config_path);
+    println!("Done! {config_path} is set as global ");
     let restart_status = Command::new("systemctl")
         .args(["--user", "restart", "hyde-ipc.service"])
         .status();
     if let Err(e) = restart_status {
-        eprintln!("Error restarting hyde-ipc.service: {}", e);
+        eprintln!("Error restarting hyde-ipc.service: {e}");
         std::process::exit(1);
     }
     let status_output = Command::new("systemctl")
@@ -146,7 +145,7 @@ pub fn copy_and_reload_config(config_path: &str) {
             }
         },
         Err(e) => {
-            eprintln!("Error checking hyde-ipc status: {}", e);
+            eprintln!("Error checking hyde-ipc status: {e}");
         },
     }
 }

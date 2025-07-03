@@ -13,11 +13,11 @@ pub fn sync_dispatch(command: DispatchCmd) {
     match parse_dispatcher(command) {
         Ok(dispatch_type) => {
             if let Err(e) = Dispatch::call(dispatch_type) {
-                eprintln!("Error: {}", e);
+                eprintln!("Error: {e}");
             }
         },
         Err(e) => {
-            eprintln!("Error: {}", e);
+            eprintln!("Error: {e}");
         },
     }
 }
@@ -33,11 +33,11 @@ pub async fn async_dispatch(command: DispatchCmd) {
                 println!("Async dispatch completed successfully");
             },
             Err(e) => {
-                eprintln!("Error: {}", e);
+                eprintln!("Error: {e}");
             },
         },
         Err(e) => {
-            eprintln!("Error: {}", e);
+            eprintln!("Error: {e}");
         },
     }
 }
@@ -54,7 +54,7 @@ fn parse_window_identifier(identifier: &str) -> Result<WindowIdentifier<'static>
         if let Ok(pid) = pid_str.parse::<u32>() {
             Ok(WindowIdentifier::ProcessId(pid))
         } else {
-            Err(format!("Invalid PID: {}", pid_str))
+            Err(format!("Invalid PID: {pid_str}"))
         }
     } else if let Some(addr_str) = identifier.strip_prefix("address:") {
         Ok(WindowIdentifier::Address(Address::new(addr_str)))
@@ -100,13 +100,13 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
             "TopRight" => Ok(DispatchType::MoveCursorToCorner(Corner::TopRight)),
             "BottomLeft" => Ok(DispatchType::MoveCursorToCorner(Corner::BottomLeft)),
             "BottomRight" => Ok(DispatchType::MoveCursorToCorner(Corner::BottomRight)),
-            _ => Err(format!("Unknown corner: {}", corner)),
+            _ => Err(format!("Unknown corner: {corner}")),
         },
         DispatchCmd::ToggleFullscreen { mode } => match mode.as_str() {
             "Real" => Ok(DispatchType::ToggleFullscreen(FullscreenType::Real)),
             "Maximize" => Ok(DispatchType::ToggleFullscreen(FullscreenType::Maximize)),
             "NoParam" => Ok(DispatchType::ToggleFullscreen(FullscreenType::NoParam)),
-            _ => Err(format!("Unknown fullscreen type: {}", mode)),
+            _ => Err(format!("Unknown fullscreen type: {mode}")),
         },
         DispatchCmd::MoveToWorkspace { workspace } => {
             // Parse the first argument as a relative workspace number
@@ -127,7 +127,7 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
                     None,
                 ))
             } else {
-                Err(format!("Unknown workspace identifier: {}", workspace))
+                Err(format!("Unknown workspace identifier: {workspace}"))
             }
         },
         DispatchCmd::Workspace { workspace } => {
@@ -143,27 +143,27 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
                 let name_static = Box::leak(name.to_string().into_boxed_str());
                 Ok(DispatchType::Workspace(WorkspaceIdentifierWithSpecial::Name(name_static)))
             } else {
-                Err(format!("Unknown workspace identifier: {}", workspace))
+                Err(format!("Unknown workspace identifier: {workspace}"))
             }
         },
         DispatchCmd::CycleWindow { direction } => match direction.as_str() {
             "Next" => Ok(DispatchType::CycleWindow(CycleDirection::Next)),
             "Previous" => Ok(DispatchType::CycleWindow(CycleDirection::Previous)),
-            _ => Err(format!("Unknown cycle direction: {}", direction)),
+            _ => Err(format!("Unknown cycle direction: {direction}")),
         },
         DispatchCmd::MoveFocus { direction } => match direction.as_str() {
             "Up" => Ok(DispatchType::MoveFocus(Direction::Up)),
             "Down" => Ok(DispatchType::MoveFocus(Direction::Down)),
             "Left" => Ok(DispatchType::MoveFocus(Direction::Left)),
             "Right" => Ok(DispatchType::MoveFocus(Direction::Right)),
-            _ => Err(format!("Unknown direction: {}", direction)),
+            _ => Err(format!("Unknown direction: {direction}")),
         },
         DispatchCmd::SwapWindow { direction } => match direction.as_str() {
             "Up" => Ok(DispatchType::SwapWindow(Direction::Up)),
             "Down" => Ok(DispatchType::SwapWindow(Direction::Down)),
             "Left" => Ok(DispatchType::SwapWindow(Direction::Left)),
             "Right" => Ok(DispatchType::SwapWindow(Direction::Right)),
-            _ => Err(format!("Unknown direction: {}", direction)),
+            _ => Err(format!("Unknown direction: {direction}")),
         },
         DispatchCmd::FocusWindow { window } => {
             parse_window_identifier(&window).map(DispatchType::FocusWindow)

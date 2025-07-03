@@ -115,7 +115,7 @@ Examples:
   hypr-rs dispatch FocusWindow "title:^(.*Terminal.*)$"
   hypr-rs dispatch ToggleFloating address:5934277460f0
 "#;
-    println!("{}", list);
+    println!("{list}");
 }
 
 /// Main entry point for the hyde-ipc CLI.
@@ -179,7 +179,7 @@ pub fn main() {
         },
         Commands::Listen { filter, max_events, json } => {
             if let Err(e) = listen::listen(filter, max_events, json) {
-                eprintln!("Error: {}", e);
+                eprintln!("Error: {e}");
                 process::exit(1);
             }
         },
@@ -196,7 +196,7 @@ pub fn main() {
         } => {
             if let Some(config_path) = config {
                 if let Err(e) = react_config::run_from_config(&config_path) {
-                    eprintln!("Error running from config: {}", e);
+                    eprintln!("Error running from config: {e}");
                     process::exit(1);
                 }
                 return;
@@ -217,7 +217,7 @@ pub fn main() {
             if let Err(e) =
                 react::sync_react(event, subtype, filter, dispatcher, args, max_reactions)
             {
-                eprintln!("Error: {}", e);
+                eprintln!("Error: {e}");
                 process::exit(1);
             }
         },
@@ -232,11 +232,11 @@ pub fn main() {
                         std::process::exit(0);
                     },
                     Ok(s) => {
-                        eprintln!("Failed to stop global reactions (exit code: {}).", s);
+                        eprintln!("Failed to stop global reactions (exit code: {s}).");
                         std::process::exit(1);
                     },
                     Err(e) => {
-                        eprintln!("Error stopping hyde-ipc.service: {}", e);
+                        eprintln!("Error stopping hyde-ipc.service: {e}");
                         std::process::exit(1);
                     },
                 }
@@ -251,11 +251,11 @@ pub fn main() {
                         std::process::exit(0);
                     },
                     Ok(s) => {
-                        eprintln!("Failed to restart global reactions (exit code: {}).", s);
+                        eprintln!("Failed to restart global reactions (exit code: {s}).");
                         std::process::exit(1);
                     },
                     Err(e) => {
-                        eprintln!("Error restarting hyde-ipc.service: {}", e);
+                        eprintln!("Error restarting hyde-ipc.service: {e}");
                         std::process::exit(1);
                     },
                 }
@@ -266,17 +266,15 @@ pub fn main() {
                 let dest_dir = PathBuf::from(&home).join(".local/share/hyde-ipc");
                 let dest = dest_dir.join("config.toml");
                 if let Err(e) = fs::create_dir_all(&dest_dir) {
-                    eprintln!("Error creating global config directory: {}", e);
+                    eprintln!("Error creating global config directory: {e}");
                     std::process::exit(1);
                 }
                 if let Some(path) = config_path {
                     setup::copy_and_reload_config(&path);
-                } else {
-                    if !dest.exists() {
-                        if let Err(e) = fs::File::create(&dest) {
-                            eprintln!("Error creating empty config file: {}", e);
-                            std::process::exit(1);
-                        }
+                } else if !dest.exists() {
+                    if let Err(e) = fs::File::create(&dest) {
+                        eprintln!("Error creating empty config file: {e}");
+                        std::process::exit(1);
                     }
                 }
             } else {

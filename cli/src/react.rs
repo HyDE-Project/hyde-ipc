@@ -72,7 +72,7 @@ fn build_dispatch_cmd(dispatcher: &str, args: &[String]) -> Result<DispatchCmd, 
         "Exit" => Ok(DispatchCmd::Exit),
         "ResizeActive" => Ok(DispatchCmd::ResizeActive { resize_params: args.to_vec() }),
         "ResizeWindowPixel" => Ok(DispatchCmd::ResizeWindowPixel { resize_params: args.to_vec() }),
-        _ => Err(format!("Unknown dispatcher: {}", dispatcher)),
+        _ => Err(format!("Unknown dispatcher: {dispatcher}")),
     }
 }
 
@@ -93,9 +93,9 @@ pub fn sync_react(
     args: Vec<String>,
     max_reactions: usize,
 ) -> hyprland::Result<()> {
-    println!("Reacting to {} events with dispatcher: {}", event, dispatcher);
+    println!("Reacting to {event} events with dispatcher: {dispatcher}");
     if let Some(filter) = &filter {
-        println!("Using window filter: {}", filter);
+        println!("Using window filter: {filter}");
     }
     println!("Press Ctrl+C to stop");
 
@@ -103,7 +103,7 @@ pub fn sync_react(
     let dispatch_cmd = match build_dispatch_cmd(&dispatcher, &args) {
         Ok(cmd) => cmd,
         Err(e) => {
-            eprintln!("Error parsing dispatcher: {}", e);
+            eprintln!("Error parsing dispatcher: {e}");
             return Err(hyprland::shared::HyprError::Other(e));
         },
     };
@@ -111,7 +111,7 @@ pub fn sync_react(
     let _dispatch_type = match parse_dispatcher(dispatch_cmd) {
         Ok(dt) => dt,
         Err(e) => {
-            eprintln!("Error parsing dispatcher: {}", e);
+            eprintln!("Error parsing dispatcher: {e}");
             return Err(hyprland::shared::HyprError::Other(e));
         },
     };
@@ -264,10 +264,9 @@ fn setup_event_handlers(
                         });
                     },
                     _ => {
-                        eprintln!("Unknown window subtype: {}", subtype);
+                        eprintln!("Unknown window subtype: {subtype}");
                         return Err(hyprland::shared::HyprError::Other(format!(
-                            "Unknown window subtype: {}",
-                            subtype
+                            "Unknown window subtype: {subtype}"
                         )));
                     },
                 }
@@ -394,10 +393,9 @@ fn setup_event_handlers(
                         });
                     },
                     _ => {
-                        eprintln!("Unknown workspace subtype: {}", subtype);
+                        eprintln!("Unknown workspace subtype: {subtype}");
                         return Err(hyprland::shared::HyprError::Other(format!(
-                            "Unknown workspace subtype: {}",
-                            subtype
+                            "Unknown workspace subtype: {subtype}"
                         )));
                     },
                 }
@@ -500,10 +498,9 @@ fn setup_event_handlers(
                         });
                     },
                     _ => {
-                        eprintln!("Unknown group subtype: {}", subtype);
+                        eprintln!("Unknown group subtype: {subtype}");
                         return Err(hyprland::shared::HyprError::Other(format!(
-                            "Unknown group subtype: {}",
-                            subtype
+                            "Unknown group subtype: {subtype}"
                         )));
                     },
                 }
@@ -540,10 +537,9 @@ fn setup_event_handlers(
             });
         },
         _ => {
-            eprintln!("Unknown event type: {}", event);
+            eprintln!("Unknown event type: {event}");
             return Err(hyprland::shared::HyprError::Other(format!(
-                "Unknown event type: {}",
-                event
+                "Unknown event type: {event}"
             )));
         },
     }
@@ -557,27 +553,27 @@ fn handle_event(dispatcher: &str, args: &[String], count: &Arc<AtomicUsize>, max
     let dispatch_cmd = match build_dispatch_cmd(dispatcher, args) {
         Ok(cmd) => cmd,
         Err(e) => {
-            eprintln!("Error parsing dispatcher: {}", e);
+            eprintln!("Error parsing dispatcher: {e}");
             return;
         },
     };
 
     match parse_dispatcher(dispatch_cmd) {
         Ok(dispatch_type) => {
-            println!("Event triggered! Executing: {} {:?}", dispatcher, args);
+            println!("Event triggered! Executing: {dispatcher} {args:?}");
 
             // Execute synchronously only
             if let Err(e) = Dispatch::call(dispatch_type) {
-                eprintln!("Error executing dispatcher: {}", e);
+                eprintln!("Error executing dispatcher: {e}");
             }
 
             if max_reactions > 0 && current >= max_reactions {
-                println!("Reached maximum number of reactions ({}). Exiting...", max_reactions);
+                println!("Reached maximum number of reactions ({max_reactions}). Exiting...");
                 std::process::exit(0);
             }
         },
         Err(e) => {
-            eprintln!("Error parsing dispatcher: {}", e);
+            eprintln!("Error parsing dispatcher: {e}");
         },
     }
 }

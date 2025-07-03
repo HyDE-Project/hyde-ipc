@@ -73,7 +73,7 @@ fn build_dispatch_cmd(dispatcher: &str, args: &[String]) -> Result<DispatchCmd, 
         "Exit" => Ok(DispatchCmd::Exit),
         "ResizeActive" => Ok(DispatchCmd::ResizeActive { resize_params: args.to_vec() }),
         "ResizeWindowPixel" => Ok(DispatchCmd::ResizeWindowPixel { resize_params: args.to_vec() }),
-        _ => Err(format!("Unknown dispatcher: {}", dispatcher)),
+        _ => Err(format!("Unknown dispatcher: {dispatcher}")),
     }
 }
 
@@ -167,13 +167,13 @@ pub enum EventType {
 impl fmt::Display for EventType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            EventType::Window(subtype) => write!(f, "window {}", subtype),
-            EventType::Workspace(subtype) => write!(f, "workspace {}", subtype),
+            EventType::Window(subtype) => write!(f, "window {subtype}"),
+            EventType::Workspace(subtype) => write!(f, "workspace {subtype}"),
             EventType::Monitor => write!(f, "monitor"),
             EventType::Float => write!(f, "float"),
             EventType::Fullscreen => write!(f, "fullscreen"),
             EventType::Layout => write!(f, "layout"),
-            EventType::Group(subtype) => write!(f, "group {}", subtype),
+            EventType::Group(subtype) => write!(f, "group {subtype}"),
             EventType::Config => write!(f, "config"),
         }
     }
@@ -273,18 +273,18 @@ impl Reaction {
             match super::dispatch::parse_dispatcher(dispatch_cmd) {
                 Ok(dispatch_type) => {
                     if let Err(e) = Dispatch::call(dispatch_type) {
-                        eprintln!("Error executing dispatcher: {}", e);
+                        eprintln!("Error executing dispatcher: {e}");
                     }
                 },
                 Err(e) => {
-                    eprintln!("Error parsing dispatcher: {}", e);
+                    eprintln!("Error parsing dispatcher: {e}");
                 },
             }
         }
 
         // Return whether we should continue (i.e., haven't reached max_count)
         if max_count > 0 && current >= max_count {
-            println!("Reached maximum reaction count ({})", max_count);
+            println!("Reached maximum reaction count ({max_count})");
             Ok(false)
         } else {
             Ok(true)
@@ -324,7 +324,7 @@ impl ReactionManager {
         // Start the listener
         event_listener
             .start_listener()
-            .map_err(|e| format!("{}", e))
+            .map_err(|e| format!("{e}"))
     }
 
     /// Set up a handler for a specific event type.
@@ -360,7 +360,7 @@ impl ReactionManager {
                     }
 
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {}", e);
+                        eprintln!("Error executing reaction: {e}");
                     }
                 });
             },
@@ -373,7 +373,7 @@ impl ReactionManager {
                     }
 
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {}", e);
+                        eprintln!("Error executing reaction: {e}");
                     }
                 });
             },
@@ -386,7 +386,7 @@ impl ReactionManager {
                     }
 
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {}", e);
+                        eprintln!("Error executing reaction: {e}");
                     }
                 });
             },
@@ -417,84 +417,84 @@ impl ReactionManager {
                     }
 
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {}", e);
+                        eprintln!("Error executing reaction: {e}");
                     }
                 });
             },
             EventType::Workspace(WorkspaceEventType::Changed) => {
                 event_listener.add_workspace_changed_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {}", e);
+                        eprintln!("Error executing reaction: {e}");
                     }
                 });
             },
             EventType::Workspace(WorkspaceEventType::Added) => {
                 event_listener.add_workspace_added_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {}", e);
+                        eprintln!("Error executing reaction: {e}");
                     }
                 });
             },
             EventType::Workspace(WorkspaceEventType::Deleted) => {
                 event_listener.add_workspace_deleted_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {}", e);
+                        eprintln!("Error executing reaction: {e}");
                     }
                 });
             },
             EventType::Monitor => {
                 event_listener.add_active_monitor_changed_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {}", e);
+                        eprintln!("Error executing reaction: {e}");
                     }
                 });
             },
             EventType::Float => {
                 event_listener.add_float_state_changed_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {}", e);
+                        eprintln!("Error executing reaction: {e}");
                     }
                 });
             },
             EventType::Fullscreen => {
                 event_listener.add_fullscreen_state_changed_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {}", e);
+                        eprintln!("Error executing reaction: {e}");
                     }
                 });
             },
             EventType::Layout => {
                 event_listener.add_layout_changed_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {}", e);
+                        eprintln!("Error executing reaction: {e}");
                     }
                 });
             },
             EventType::Group(GroupEventType::Toggled) => {
                 event_listener.add_group_toggled_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {}", e);
+                        eprintln!("Error executing reaction: {e}");
                     }
                 });
             },
             EventType::Group(GroupEventType::MovedIn) => {
                 event_listener.add_window_moved_into_group_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {}", e);
+                        eprintln!("Error executing reaction: {e}");
                     }
                 });
             },
             EventType::Group(GroupEventType::MovedOut) => {
                 event_listener.add_window_moved_out_of_group_handler(move |_| {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {}", e);
+                        eprintln!("Error executing reaction: {e}");
                     }
                 });
             },
             EventType::Config => {
                 event_listener.add_config_reloaded_handler(move || {
                     if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {}", e);
+                        eprintln!("Error executing reaction: {e}");
                     }
                 });
             },
@@ -515,7 +515,7 @@ impl ReactConfig {
     /// Load a ReactConfig from a file (JSON or TOML).
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
         let content = fs::read_to_string(path.as_ref())
-            .map_err(|e| format!("Failed to read config file: {}", e))?;
+            .map_err(|e| format!("Failed to read config file: {e}"))?;
 
         // Determine file format based on extension
         let extension = path
@@ -526,14 +526,14 @@ impl ReactConfig {
 
         match extension.to_lowercase().as_str() {
             "json" => serde_json::from_str(&content)
-                .map_err(|e| format!("Failed to parse JSON config file: {}", e)),
+                .map_err(|e| format!("Failed to parse JSON config file: {e}")),
             "toml" => toml::from_str(&content)
-                .map_err(|e| format!("Failed to parse TOML config file: {}", e)),
+                .map_err(|e| format!("Failed to parse TOML config file: {e}")),
             _ => {
                 // Try JSON first, then TOML if JSON fails
                 serde_json::from_str(&content)
                     .or_else(|_| toml::from_str(&content))
-                    .map_err(|e| format!("Failed to parse config file: {}", e))
+                    .map_err(|e| format!("Failed to parse config file: {e}"))
             },
         }
     }

@@ -29,7 +29,7 @@ pub fn listen(filter: Option<String>, max_events: usize, json: bool) -> hyprland
                     })
                 );
             } else {
-                println!("[WINDOW] Active window changed - {:?}", data);
+                println!("[WINDOW] Active window changed - {data:?}");
             }
             increment_count(&count_clone, max_events);
         }
@@ -53,7 +53,7 @@ pub fn listen(filter: Option<String>, max_events: usize, json: bool) -> hyprland
                     })
                 );
             } else {
-                println!("[WINDOW] Window opened - {:?}", data);
+                println!("[WINDOW] Window opened - {data:?}");
             }
             increment_count(&count_clone, max_events);
         }
@@ -73,7 +73,7 @@ pub fn listen(filter: Option<String>, max_events: usize, json: bool) -> hyprland
                     })
                 );
             } else {
-                println!("[WINDOW] Window closed - {:?}", data);
+                println!("[WINDOW] Window closed - {data:?}");
             }
             increment_count(&count_clone, max_events);
         }
@@ -149,7 +149,7 @@ pub fn listen(filter: Option<String>, max_events: usize, json: bool) -> hyprland
                     })
                 );
             } else {
-                println!("[FULLSCREEN] Fullscreen {}", state_str);
+                println!("[FULLSCREEN] Fullscreen {state_str}");
             }
             increment_count(&count_clone, max_events);
         }
@@ -170,7 +170,7 @@ pub fn listen(filter: Option<String>, max_events: usize, json: bool) -> hyprland
                     })
                 );
             } else {
-                println!("[WORKSPACE] Changed workspace - {:?}", id);
+                println!("[WORKSPACE] Changed workspace - {id:?}");
             }
             increment_count(&count_clone, max_events);
         }
@@ -321,7 +321,7 @@ pub fn listen(filter: Option<String>, max_events: usize, json: bool) -> hyprland
                     })
                 );
             } else {
-                println!("[GROUP] Window moved into group - address: {}", addr);
+                println!("[GROUP] Window moved into group - address: {addr}");
             }
             increment_count(&count_clone, max_events);
         }
@@ -341,7 +341,7 @@ pub fn listen(filter: Option<String>, max_events: usize, json: bool) -> hyprland
                     })
                 );
             } else {
-                println!("[GROUP] Window moved out of group - address: {}", addr);
+                println!("[GROUP] Window moved out of group - address: {addr}");
             }
             increment_count(&count_clone, max_events);
         }
