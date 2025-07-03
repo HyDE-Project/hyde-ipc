@@ -1,4 +1,5 @@
 pub fn sync_keyword(get: bool, set: bool, keyword: String, value: Option<String>) {
+    let x = 1;
     if get {
         println!(
             "{} value is {}",
