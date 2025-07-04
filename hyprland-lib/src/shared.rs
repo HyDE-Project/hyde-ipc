@@ -4,7 +4,7 @@
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use std::env::{var, VarError};
+use std::env::{VarError, var};
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::{error, fmt, io};
@@ -29,9 +29,11 @@ pub enum HyprError {
 impl HyprError {
     /// Try to get an owned version of the internal error.
     ///
-    /// Some dependencies of hyprland do not impl Clone in their error types. This is a partial workaround.
+    /// Some dependencies of hyprland do not impl Clone in their error types. This is a partial
+    /// workaround.
     ///
-    /// If it succeeds, it returns the owned version of HyprError in Ok(). Otherwise, it returns a reference to the error type.
+    /// If it succeeds, it returns the owned version of HyprError in Ok(). Otherwise, it returns a
+    /// reference to the error type.
     pub fn try_as_cloned(&self) -> Result<Self, &Self> {
         match self {
             Self::SerdeError(_) => Err(self),
@@ -42,6 +44,7 @@ impl HyprError {
             Self::Other(s) => Ok(Self::Other(s.clone())),
         }
     }
+
     /// Create a Hyprland error with dynamic data.
     #[inline(always)]
     pub fn other<S: Into<String>>(other: S) -> Self {
@@ -67,7 +70,8 @@ impl From<std::string::FromUtf8Error> for HyprError {
     }
 }
 
-impl error::Error for HyprError {}
+impl error::Error for HyprError {
+}
 
 /// Internal macro to return a Hyprland error
 macro_rules! hypr_err {
@@ -99,14 +103,11 @@ impl Address {
         // this way is faster than std::fmt
         Self("0x".to_owned() + address)
     }
+
     /// This creates a new address from a value that implements [std::string::ToString]
     pub fn new<T: ToString>(string: T) -> Self {
         let str = string.to_string();
-        if str.starts_with("0x") {
-            Self(str)
-        } else {
-            Self("0x".to_owned() + str.as_str())
-        }
+        if str.starts_with("0x") { Self(str) } else { Self("0x".to_owned() + str.as_str()) }
     }
 }
 
@@ -205,7 +206,9 @@ macro_rules! from {
         )+
     };
 }
-from![u8, u16, u32, u64, usize, i8, i16, i32, i64, isize];
+from![
+    u8, u16, u32, u64, usize, i8, i16, i32, i64, isize
+];
 
 impl Hash for WorkspaceType {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -229,7 +232,9 @@ pub(crate) async fn write_to_socket(
     let path = get_socket_path(ty)?;
     let mut stream = UnixStream::connect(path).await?;
 
-    stream.write_all(&content.as_bytes()).await?;
+    stream
+        .write_all(&content.as_bytes())
+        .await?;
 
     let mut response = vec![];
 
@@ -322,10 +327,10 @@ fn init_socket_path(socket_type: SocketType) -> crate::Result<PathBuf> {
         Ok(var) => var,
         Err(VarError::NotPresent) => {
             hypr_err!("Could not get socket path! (Is Hyprland running??)")
-        }
+        },
         Err(VarError::NotUnicode(_)) => {
             hypr_err!("Corrupted Hyprland socket variable: Invalid unicode!")
-        }
+        },
     };
 
     let mut p: PathBuf;
@@ -370,8 +375,10 @@ fn init_socket_path(socket_type: SocketType) -> crate::Result<PathBuf> {
 ///
 /// # Arguments
 ///
-/// * `$flag` - A `CommandFlag` variant (`JSON` or `Empty`) that represents the flag for the command.
-/// * `$($k:tt)*` - A format string and its arguments to be used as the data in the `CommandContent` instance.
+/// * `$flag` - A `CommandFlag` variant (`JSON` or `Empty`) that represents the flag for the
+///   command.
+/// * `$($k:tt)*` - A format string and its arguments to be used as the data in the `CommandContent`
+///   instance.
 #[macro_export]
 macro_rules! command {
     ($flag:ident, $($k:tt)*) => {{

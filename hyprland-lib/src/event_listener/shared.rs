@@ -1,5 +1,6 @@
 use crate::shared::*;
-use std::{fmt::Debug, pin::Pin};
+use std::fmt::Debug;
+use std::pin::Pin;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum ActiveWindowValue<T> {
@@ -12,6 +13,7 @@ impl<T> ActiveWindowValue<T> {
     pub fn reset(&mut self) {
         *self = Self::Empty;
     }
+
     pub fn is_empty(&self) -> bool {
         matches!(self, Self::Empty)
     }
@@ -155,6 +157,7 @@ impl ActiveWindowState {
         }
         Ok(())
     }
+
     pub fn get_event(&mut self) -> Option<Event> {
         use ActiveWindowValue::{None, Queued};
         let data = (&self.title, &self.class, &self.addr);
@@ -175,11 +178,13 @@ impl ActiveWindowState {
     pub fn ready(&self) -> bool {
         !self.class.is_empty() && !self.title.is_empty() && !self.addr.is_empty()
     }
+
     pub fn reset(&mut self) {
         self.class.reset();
         self.title.reset();
         self.addr.reset();
     }
+
     pub fn new() -> Self {
         Self {
             class: ActiveWindowValue::Empty,
@@ -200,10 +205,7 @@ impl<T> From<Option<T>> for ActiveWindowValue<T> {
 
 pub(crate) fn into<T>(from: Option<(T, T)>) -> (ActiveWindowValue<T>, ActiveWindowValue<T>) {
     if let Some((first, second)) = from {
-        (
-            ActiveWindowValue::Queued(first),
-            ActiveWindowValue::Queued(second),
-        )
+        (ActiveWindowValue::Queued(first), ActiveWindowValue::Queued(second))
     } else {
         (ActiveWindowValue::None, ActiveWindowValue::None)
     }
@@ -294,7 +296,7 @@ impl State {
                             Some(name) => Some(name),
                             None => None,
                         })
-                    }
+                    },
                 }))
                 .await?;
             }
@@ -308,6 +310,7 @@ impl State {
         }
         Ok(state)
     }
+
     /// Execute changes in state
     pub fn execute_state_sync(self, old: State) -> crate::Result<Self> {
         let state = self.clone();
@@ -326,7 +329,7 @@ impl State {
                             Some(name) => Some(name),
                             None => None,
                         })
-                    }
+                    },
                 }))?;
             }
             if old.active_monitor != state.active_monitor {
@@ -729,13 +732,13 @@ macro_rules! get {
 /// This internal function parses event strings
 pub(crate) fn event_parser(event: String) -> crate::Result<Vec<Event>> {
     // TODO: Optimize nested looped regex capturing. Maybe pull in rayon if possible.
-    let event_iter = event.trim().lines().filter_map(|event_line| {
-        if event_line.is_empty() {
-            None
-        } else {
-            Some(new_event_parser(event_line))
-        }
-    });
+    let event_iter =
+        event
+            .trim()
+            .lines()
+            .filter_map(|event_line| {
+                if event_line.is_empty() { None } else { Some(new_event_parser(event_line)) }
+            });
 
     let parsed_events = event_iter.map(|event| match event {
         Err(x) => Err(x),
@@ -746,13 +749,13 @@ pub(crate) fn event_parser(event: String) -> crate::Result<Vec<Event>> {
                     id: parse_int!(get![ref args;0], event: "WorkspaceChangedV2"),
                     name: parse_string_as_work(get![args;1]),
                 }))
-            }
+            },
             ParsedEventType::WorkspaceDeletedV2 => {
                 Ok(Event::WorkspaceDeleted(WorkspaceEventData {
                     id: parse_int!(get![ref args;0], event: "WorkspaceDeletedV2"),
                     name: parse_string_as_work(get![args;1]),
                 }))
-            }
+            },
             ParsedEventType::WorkspaceAddedV2 => Ok(Event::WorkspaceAdded(WorkspaceEventData {
                 id: parse_int!(get![ref args;0], event: "WorkspaceAddedV2"),
                 name: parse_string_as_work(get![args;1]),
@@ -763,13 +766,13 @@ pub(crate) fn event_parser(event: String) -> crate::Result<Vec<Event>> {
                     name: parse_string_as_work(get![args;1]),
                     monitor: get![args;2],
                 }))
-            }
+            },
             ParsedEventType::WorkspaceRename => {
                 Ok(Event::WorkspaceRenamed(NonSpecialWorkspaceEventData {
                     id: parse_int!(get![args;0], event: "WorkspaceRenamed"),
                     name: get![args;1],
                 }))
-            }
+            },
             ParsedEventType::ActiveMonitorChanged => {
                 Ok(Event::ActiveMonitorChanged(MonitorEventData {
                     monitor_name: get![args;0],
@@ -779,7 +782,7 @@ pub(crate) fn event_parser(event: String) -> crate::Result<Vec<Event>> {
                         Some(parse_string_as_work(get![args;1]))
                     },
                 }))
-            }
+            },
             ParsedEventType::ActiveWindowChangedV1 => {
                 let class = get![args;0];
                 let title = get![args;1];
@@ -790,7 +793,7 @@ pub(crate) fn event_parser(event: String) -> crate::Result<Vec<Event>> {
                 };
 
                 Ok(event)
-            }
+            },
             ParsedEventType::ActiveWindowChangedV2 => {
                 let addr = get![ref args;0];
                 let event = if addr != "," {
@@ -799,10 +802,10 @@ pub(crate) fn event_parser(event: String) -> crate::Result<Vec<Event>> {
                     Event::ActiveWindowChangedV2(None)
                 };
                 Ok(event)
-            }
+            },
             ParsedEventType::FullscreenStateChanged => {
                 Ok(Event::FullscreenStateChanged(get![ref args;0] != "0"))
-            }
+            },
             ParsedEventType::MonitorRemoved => Ok(Event::MonitorRemoved(get![args;0])),
             ParsedEventType::MonitorAddedV2 => Ok(Event::MonitorAdded(MonitorAddedEventData {
                 id: parse_int!(get![ref args;0], event: "MonitorAddedV2" => MonitorId),
@@ -832,7 +835,7 @@ pub(crate) fn event_parser(event: String) -> crate::Result<Vec<Event>> {
                         workspace_name,
                     }))
                 }
-            }
+            },
             ParsedEventType::LayoutChanged => Ok(Event::LayoutChanged(LayoutEvent {
                 keyboard_name: get![args;0],
                 layout_name: get![args;1],
@@ -846,31 +849,28 @@ pub(crate) fn event_parser(event: String) -> crate::Result<Vec<Event>> {
                     address: Address::new(get![ref args;0]),
                     floating: state,
                 }))
-            }
+            },
             ParsedEventType::Screencast => {
                 let state = get![ref args;0] == "1";
                 let owner = get![ref args;1] == "1";
-                Ok(Event::Screencast(ScreencastEventData {
-                    turning_on: state,
-                    monitor: owner,
-                }))
-            }
+                Ok(Event::Screencast(ScreencastEventData { turning_on: state, monitor: owner }))
+            },
             ParsedEventType::UrgentStateChanged => {
                 Ok(Event::UrgentStateChanged(Address::new(get![ref args;0])))
-            }
+            },
             ParsedEventType::WindowTitleChangedV2 => {
                 Ok(Event::WindowTitleChanged(WindowTitleEventData {
                     address: Address::new(get![ref args;0]),
                     title: get![args;1],
                 }))
-            }
+            },
             ParsedEventType::ConfigReloaded => Ok(Event::ConfigReloaded),
             ParsedEventType::IgnoreGroupLock => {
                 Ok(Event::IgnoreGroupLockStateChanged(get![ref args;0] == "1"))
-            }
+            },
             ParsedEventType::LockGroups => {
                 Ok(Event::LockGroupsStateChanged(get![ref args;0] == "1"))
-            }
+            },
             ParsedEventType::Pin => Ok(Event::WindowPinned(WindowPinEventData {
                 address: Address::new(get![ref args;0]),
                 pinned: get![ref args;1] == "1",
@@ -884,10 +884,10 @@ pub(crate) fn event_parser(event: String) -> crate::Result<Vec<Event>> {
             })),
             ParsedEventType::MoveIntoGroup => {
                 Ok(Event::WindowMovedIntoGroup(Address::new(get![ref args;0])))
-            }
+            },
             ParsedEventType::MoveOutOfGroup => {
                 Ok(Event::WindowMovedOutOfGroup(Address::new(get![ref args;0])))
-            }
+            },
         },
     });
 
