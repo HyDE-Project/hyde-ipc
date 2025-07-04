@@ -5,12 +5,12 @@
 //! ## Usage
 //!
 //! ```rust
-//! use hyprland::shared::HResult;
 //! use hyprland::dispatch::{Dispatch, DispatchType};
+//! use hyprland::shared::HResult;
 //! fn main() -> HResult<()> {
-//!    Dispatch::call(DispatchType::Exec("kitty"))?;
+//!     Dispatch::call(DispatchType::Exec("kitty"))?;
 //!
-//!    Ok(())
+//!     Ok(())
 //! }
 //! ````
 
@@ -178,7 +178,10 @@ pub enum WorkspaceIdentifierWithSpecial<'a> {
     #[display("name:{_0}")]
     Name(&'a str),
     /// The special workspace
-    #[display("special{}", format_special_workspace_ident(_0))]
+    #[display(
+        "special{}",
+        format_special_workspace_ident(_0)
+    )]
     Special(Option<&'a str>),
 }
 
@@ -270,16 +273,10 @@ pub enum DispatchType<'a> {
     /// This dispatcher changes the current workspace
     Workspace(WorkspaceIdentifierWithSpecial<'a>),
     /// This dispatcher moves a window (focused if not specified) to a workspace
-    MoveToWorkspace(
-        WorkspaceIdentifierWithSpecial<'a>,
-        Option<WindowIdentifier<'a>>,
-    ),
-    /// This dispatcher moves a window (focused if not specified) to a workspace, without switching to that
-    /// workspace
-    MoveToWorkspaceSilent(
-        WorkspaceIdentifierWithSpecial<'a>,
-        Option<WindowIdentifier<'a>>,
-    ),
+    MoveToWorkspace(WorkspaceIdentifierWithSpecial<'a>, Option<WindowIdentifier<'a>>),
+    /// This dispatcher moves a window (focused if not specified) to a workspace, without switching
+    /// to that workspace
+    MoveToWorkspaceSilent(WorkspaceIdentifierWithSpecial<'a>, Option<WindowIdentifier<'a>>),
     /// This dispatcher floats a window (current if not specified)
     ToggleFloating(Option<WindowIdentifier<'a>>),
     /// This dispatcher toggles the current window fullscreen state
@@ -309,7 +306,8 @@ pub enum DispatchType<'a> {
     MoveWindowPixel(Position, WindowIdentifier<'a>),
     /// This dispatcher cycles windows using a specified direction
     CycleWindow(CycleDirection),
-    /// This dispatcher swaps the focused window with the window on a workspace using a specified direction
+    /// This dispatcher swaps the focused window with the window on a workspace using a specified
+    /// direction
     SwapNext(CycleDirection),
     /// This dispatcher swaps windows using a specified direction
     SwapWindow(Direction),
@@ -351,7 +349,8 @@ pub enum DispatchType<'a> {
 
     // LAYOUT DISPATCHERS
     // DWINDLE
-    /// Toggles the split (top/side) of the current window. `preserve_split` must be enabled for toggling to work.
+    /// Toggles the split (top/side) of the current window. `preserve_split` must be enabled for
+    /// toggling to work.
     ToggleSplit,
 
     // MASTER
@@ -473,22 +472,15 @@ pub(crate) fn gen_dispatch_str(cmd: DispatchType, dispatch: bool) -> crate::Resu
         ToggleFullscreen(ftype) => format!("fullscreen{sep}{ftype}"),
         ToggleFakeFullscreen => "fakefullscreen".to_string(),
         ToggleDPMS(stat, mon) => {
-            format!(
-                "dpms{sep}{} {}",
-                if *stat { "on" } else { "off" },
-                mon.unwrap_or_default()
-            )
-        }
+            format!("dpms{sep}{} {}", if *stat { "on" } else { "off" }, mon.unwrap_or_default())
+        },
         TogglePseudo => "pseudo".to_string(),
         TogglePin => "pin".to_string(),
         MoveFocus(dir) => format!("movefocus{sep}{dir}",),
-        MoveWindow(ident) => format!(
-            "movewindow{sep}{}",
-            match ident {
-                WindowMove::Direction(dir) => dir.to_string(),
-                WindowMove::Monitor(mon) => format!("mon:{mon}"),
-            }
-        ),
+        MoveWindow(ident) => format!("movewindow{sep}{}", match ident {
+            WindowMove::Direction(dir) => dir.to_string(),
+            WindowMove::Monitor(mon) => format!("mon:{mon}"),
+        }),
         CenterWindow => "centerwindow".to_string(),
         ResizeActive(pos) => format!("resizeactive{sep}{pos}"),
         MoveActive(pos) => format!("moveactive {pos}"),
@@ -511,11 +503,8 @@ pub(crate) fn gen_dispatch_str(cmd: DispatchType, dispatch: bool) -> crate::Resu
         ToggleSpecialWorkspace(Some(name)) => format!("togglespecialworkspace {name}"),
         ToggleSpecialWorkspace(None) => "togglespecialworkspace".to_string(),
         RenameWorkspace(id, name) => {
-            format!(
-                "renameworkspace{sep}{id} {}",
-                name.unwrap_or(&id.to_string())
-            )
-        }
+            format!("renameworkspace{sep}{id} {}", name.unwrap_or(&id.to_string()))
+        },
         SwapActiveWorkspaces(mon, mon2) => format!("swapactiveworkspaces{sep}{mon} {mon2}",),
         BringActiveToTop => "bringactivetotop".to_string(),
         SetCursor(theme, size) => format!("{theme} {}", *size),
@@ -540,7 +529,7 @@ pub(crate) fn gen_dispatch_str(cmd: DispatchType, dispatch: bool) -> crate::Resu
         MoveOutOfGroup => "moveoutofgroup".to_string(),
     };
 
-    if let SetCursor(_, _) = cmd {
+    if let SetCursor(..) = cmd {
         Ok(command!(JSON, "setcursor {string_to_pass}"))
     } else if dispatch {
         Ok(command!(JSON, "dispatch {string_to_pass}"))
@@ -558,7 +547,7 @@ impl Dispatch {
     /// ```rust
     /// # use hyprland::shared::HResult;
     /// # fn main() -> HResult<()> {
-    /// use hyprland::dispatch::{DispatchType,Dispatch};
+    /// use hyprland::dispatch::{Dispatch, DispatchType};
     /// // This is an example of just one dispatcher, there are many more!
     /// Dispatch::call(DispatchType::Exec("kitty"))
     /// # }
@@ -581,7 +570,7 @@ impl Dispatch {
     /// ```rust
     /// # use hyprland::shared::HResult;
     /// # async fn function() -> HResult<()> {
-    /// use hyprland::dispatch::{DispatchType,Dispatch};
+    /// use hyprland::dispatch::{Dispatch, DispatchType};
     /// // This is an example of just one dispatcher, there are many more!
     /// Dispatch::call_async(DispatchType::Exec("kitty")).await?;
     /// # Ok(())

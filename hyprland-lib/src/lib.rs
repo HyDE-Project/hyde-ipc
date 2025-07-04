@@ -3,8 +3,14 @@
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
 #![allow(async_fn_in_trait)]
-#![cfg_attr(feature = "unsafe-impl", allow(unsafe_code))]
-#![cfg_attr(not(feature = "unsafe-impl"), forbid(unsafe_code))]
+#![cfg_attr(
+    feature = "unsafe-impl",
+    allow(unsafe_code)
+)]
+#![cfg_attr(
+    not(feature = "unsafe-impl"),
+    forbid(unsafe_code)
+)]
 
 #[macro_use]
 extern crate paste;
@@ -14,7 +20,8 @@ extern crate hyprland_macros;
 
 pub use hyprland_macros::async_closure;
 
-/// This module provides several impls that are unsafe, for FFI purposes. Only use if you know what you are doing.
+/// This module provides several impls that are unsafe, for FFI purposes. Only use if you know what
+/// you are doing.
 #[cfg(feature = "unsafe-impl")]
 pub mod unsafe_impl;
 
@@ -52,9 +59,15 @@ pub mod prelude {
 }
 
 pub(crate) mod unix_async {
-    #[cfg(all(feature = "async-lite", not(feature = "tokio")))]
+    #[cfg(all(
+        feature = "async-lite",
+        not(feature = "tokio")
+    ))]
     pub use async_net::unix::UnixStream;
-    #[cfg(all(feature = "async-lite", not(feature = "tokio")))]
+    #[cfg(all(
+        feature = "async-lite",
+        not(feature = "tokio")
+    ))]
     pub use futures_lite::io::{AsyncReadExt, AsyncWriteExt};
 
     #[cfg(all(

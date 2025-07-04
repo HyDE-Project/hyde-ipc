@@ -58,7 +58,7 @@ pub use crate::data::helpers::*;
 pub use crate::data::regular::*;
 
 //// This module provides async function calls
-//pub mod asynchronous;
+// pub mod asynchronous;
 
 //// This module provides blocking function calls
-//pub mod blocking;
+// pub mod blocking;

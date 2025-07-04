@@ -7,10 +7,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 async fn call_hyprctl_data_cmd_async(cmd: DataCommands) -> crate::Result<String> {
     let socket_path = SocketType::Command;
 
-    let command = CommandContent {
-        flag: CommandFlag::JSON,
-        data: cmd.to_string(),
-    };
+    let command = CommandContent { flag: CommandFlag::JSON, data: cmd.to_string() };
 
     write_to_socket(socket_path, command).await
 }
@@ -18,10 +15,7 @@ async fn call_hyprctl_data_cmd_async(cmd: DataCommands) -> crate::Result<String>
 fn call_hyprctl_data_cmd(cmd: DataCommands) -> crate::Result<String> {
     let socket_path = SocketType::Command;
 
-    let command = CommandContent {
-        flag: CommandFlag::JSON,
-        data: cmd.to_string(),
-    };
+    let command = CommandContent { flag: CommandFlag::JSON, data: cmd.to_string() };
 
     write_to_socket_sync(socket_path, command)
 }
@@ -132,15 +126,22 @@ pub struct Monitor {
 impl HyprDataActive for Monitor {
     fn get_active() -> crate::Result<Self> {
         let all = Monitors::get()?;
-        if let Some(it) = all.into_iter().find(|item| item.focused) {
+        if let Some(it) = all
+            .into_iter()
+            .find(|item| item.focused)
+        {
             Ok(it)
         } else {
             hypr_err!("No active Hyprland monitor detected!")
         }
     }
+
     async fn get_active_async() -> crate::Result<Self> {
         let all = Monitors::get_async().await?;
-        if let Some(it) = all.into_iter().find(|item| item.focused) {
+        if let Some(it) = all
+            .into_iter()
+            .find(|item| item.focused)
+        {
             Ok(it)
         } else {
             hypr_err!("No active Hyprland monitor detected!")
@@ -187,6 +188,7 @@ impl HyprDataActive for Workspace {
         let deserialized: Workspace = serde_json::from_str(&data)?;
         Ok(deserialized)
     }
+
     async fn get_active_async() -> crate::Result<Self> {
         let data = call_hyprctl_data_cmd_async(DataCommands::ActiveWorkspace).await?;
         let deserialized: Workspace = serde_json::from_str(&data)?;
@@ -258,7 +260,8 @@ pub struct Client {
     pub mapped: bool,
     /// The swallowed window
     pub swallowing: Option<Box<Address>>,
-    /// When was this window last focused relatively to other windows? 0 for current, 1 previous, 2 previous before that, etc
+    /// When was this window last focused relatively to other windows? 0 for current, 1 previous, 2
+    /// previous before that, etc
     #[serde(rename = "focusHistoryID")]
     pub focus_history_id: i8,
 }
@@ -278,6 +281,7 @@ impl HyprDataActiveOptional for Client {
             Ok(None)
         }
     }
+
     async fn get_active_async() -> crate::Result<Option<Self>> {
         let data = call_hyprctl_data_cmd_async(DataCommands::ActiveWindow).await?;
         let res = serde_json::from_str::<Empty>(&data);
@@ -526,7 +530,10 @@ impl From<String> for AnimationStyle {
             let mut iter = value.split(' ');
             iter.next();
             AnimationStyle::PopIn({
-                let mut str = iter.next().unwrap_or("100%").to_string();
+                let mut str = iter
+                    .next()
+                    .unwrap_or("100%")
+                    .to_string();
                 str.remove(str.len() - 1);
 
                 str.parse().unwrap_or(100_u8)
@@ -578,7 +585,7 @@ struct RawBezierIdent {
 /// A bezier curve
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Bezier {
-    ///. Name of the bezier
+    /// . Name of the bezier
     pub name: String,
     /// X position of first point
     pub x0: f32,
@@ -650,9 +657,13 @@ impl HyprData for Animations {
                 style: item.style.into(),
             })
             .collect();
-        let new_bezs: Vec<BezierIdent> = beziers.into_iter().map(|item| item.name.into()).collect();
+        let new_bezs: Vec<BezierIdent> = beziers
+            .into_iter()
+            .map(|item| item.name.into())
+            .collect();
         Ok(Animations(new_anims, new_bezs))
     }
+
     async fn get_async() -> crate::Result<Self>
     where
         Self: Sized,
@@ -671,13 +682,17 @@ impl HyprData for Animations {
                 style: item.style.into(),
             })
             .collect();
-        let new_bezs: Vec<BezierIdent> = beziers.into_iter().map(|item| item.name.into()).collect();
+        let new_bezs: Vec<BezierIdent> = beziers
+            .into_iter()
+            .map(|item| item.name.into())
+            .collect();
         Ok(Animations(new_anims, new_bezs))
     }
 }
 
 // HACK: shadow and decorate are actually missing from the hyprctl json output for some reason
-// HACK: gaps_in and gaps_out are returned as arrays with 4 integers, even though Hyprland doesn't support per-side gaps
+// HACK: gaps_in and gaps_out are returned as arrays with 4 integers, even though Hyprland doesn't
+// support per-side gaps
 /// The rules of an individual workspace, as returned by hyprctl json.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct WorkspaceRuleset {

@@ -11,8 +11,13 @@ impl HyprData for FullscreenState {
     fn get() -> crate::Result<Self> {
         Ok(Self(Workspace::get_active()?.fullscreen))
     }
+
     async fn get_async() -> crate::Result<Self> {
-        Ok(Self(Workspace::get_active_async().await?.fullscreen))
+        Ok(Self(
+            Workspace::get_active_async()
+                .await?
+                .fullscreen,
+        ))
     }
 }
 
