@@ -1,6 +1,5 @@
 //! # Hyprland Configuration in Rust
-//!
-use crate::dispatch::{gen_dispatch_str, DispatchType};
+use crate::dispatch::{DispatchType, gen_dispatch_str};
 use crate::keyword::Keyword;
 
 /// Module providing stuff for adding an removing keybinds
@@ -27,14 +26,10 @@ pub mod binds {
 
     impl std::fmt::Display for Key<'_> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(
-                f,
-                "{}",
-                match self {
-                    Key::Mod(m, s) => format!("{}_{s}", m.join()),
-                    Key::Key(s) => s.to_string(),
-                }
-            )
+            write!(f, "{}", match self {
+                Key::Mod(m, s) => format!("{}_{s}", m.join()),
+                Key::Key(s) => s.to_string(),
+            })
         }
     }
 
@@ -77,7 +72,8 @@ pub mod binds {
         /// Repeats when held
         #[display("e")]
         e,
-        /// Non-consuming, key/mouse events will be passed to the active window in addition to triggering the dispatcher.
+        /// Non-consuming, key/mouse events will be passed to the active window in addition to
+        /// triggering the dispatcher.
         #[display("n")]
         n,
         /// Used for mouse binds
@@ -135,46 +131,33 @@ pub mod binds {
                 dispatcher = gen_dispatch_str(binding.dispatcher, false)?.data
             ))
         }
+
         /// Binds a keybinding
         pub fn bind(binding: Binding) -> crate::Result<()> {
-            Keyword::set(
-                format!("bind{}", binding.flags.join()),
-                Self::gen_str(binding)?,
-            )?;
+            Keyword::set(format!("bind{}", binding.flags.join()), Self::gen_str(binding)?)?;
             Ok(())
         }
+
         /// Binds a keybinding (async)
         pub async fn bind_async(binding: Binding<'_>) -> crate::Result<()> {
-            Keyword::set_async(
-                format!("bind{}", binding.flags.join()),
-                Self::gen_str(binding)?,
-            )
-            .await?;
+            Keyword::set_async(format!("bind{}", binding.flags.join()), Self::gen_str(binding)?)
+                .await?;
             Ok(())
         }
     }
-    /// Very macro basic abstraction over [Binder] for internal use, **Dont use this instead use [crate::bind]**
+    /// Very macro basic abstraction over [Binder] for internal use, **Dont use this instead use
+    /// [crate::bind]**
     #[macro_export]
     #[doc(hidden)]
     macro_rules! bind_raw {
         (sync $mods:expr,$key:expr,$flags:expr,$dis:expr ) => {{
             use $crate::config::binds::*;
-            let binding = Binding {
-                mods: $mods,
-                key: $key,
-                flags: $flags,
-                dispatcher: $dis,
-            };
+            let binding = Binding { mods: $mods, key: $key, flags: $flags, dispatcher: $dis };
             Binder::bind(binding)
         }};
         ($mods:expr,$key:expr,$flags:expr,$dis:expr ) => {{
             use $crate::config::binds::*;
-            let binding = Binding {
-                mods: $mods,
-                key: $key,
-                flags: $flags,
-                dispatcher: $dis,
-            };
+            let binding = Binding { mods: $mods, key: $key, flags: $flags, dispatcher: $dis };
             Binder::bind_async(binding)
         }};
     }

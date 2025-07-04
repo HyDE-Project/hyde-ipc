@@ -538,9 +538,7 @@ fn setup_event_handlers(
         },
         _ => {
             eprintln!("Unknown event type: {event}");
-            return Err(hyprland::shared::HyprError::Other(format!(
-                "Unknown event type: {event}"
-            )));
+            return Err(hyprland::shared::HyprError::Other(format!("Unknown event type: {event}")));
         },
     }
 

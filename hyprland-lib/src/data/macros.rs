@@ -6,6 +6,7 @@ macro_rules! impl_on {
                 let deserialized: $name = serde_json::from_str(&data)?;
                 Ok(deserialized)
             }
+
             async fn get_async() -> $crate::Result<Self> {
                 let data = call_hyprctl_data_cmd_async(DataCommands::$name).await?;
                 let deserialized: $name = serde_json::from_str(&data)?;

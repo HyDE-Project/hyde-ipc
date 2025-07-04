@@ -33,9 +33,7 @@ impl AsyncEventListener {
     /// let mut listener = EventListener::new();
     /// ```
     pub fn new() -> Self {
-        Self {
-            events: create_events_async(),
-        }
+        Self { events: create_events_async() }
     }
 
     /// This method starts the event listener (async)

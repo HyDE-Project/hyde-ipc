@@ -1,8 +1,6 @@
 use super::*;
-use std::{
-    pin::Pin,
-    task::{Context, Poll},
-};
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 use async_stream::try_stream;
 use futures_lite::{Stream, StreamExt};
@@ -13,16 +11,16 @@ use futures_lite::{Stream, StreamExt};
 ///
 /// # Examples
 /// ```rust
-/// use hyprland::prelude::*;
-/// use hyprland::event_listener::EventStream;
-/// use hyprland::Result as HResult;
 /// use futures_lite::StreamExt;
+/// use hyprland::Result as HResult;
+/// use hyprland::event_listener::EventStream;
+/// use hyprland::prelude::*;
 ///
 /// #[tokio::main]
 /// async fn main() -> HResult<()> {
 ///     let mut stream = EventStream::new();
 ///     while let Some(Ok(event)) = stream.next().await {
-///          println!("{event:?}");
+///         println!("{event:?}");
 ///     }
 /// }
 /// ```
@@ -64,16 +62,14 @@ impl EventStream {
             }
         }
         };
-        Self {
-            stream: Box::pin(stream),
-        }
+        Self { stream: Box::pin(stream) }
     }
 }
 
 impl Stream for EventStream {
+    type Item = crate::Result<Event>;
+
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.as_mut().stream.poll_next(cx)
     }
-
-    type Item = crate::Result<Event>;
 }

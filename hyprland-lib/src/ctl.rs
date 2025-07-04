@@ -37,19 +37,12 @@ pub mod set_cursor {
     use super::*;
     /// Set the cursor theme
     pub fn call<Str: FDisplay>(theme: Str, size: u16) -> crate::Result<()> {
-        write_to_socket_sync(
-            SocketType::Command,
-            command!(Empty, "setcursor {theme} {size}"),
-        )?;
+        write_to_socket_sync(SocketType::Command, command!(Empty, "setcursor {theme} {size}"))?;
         Ok(())
     }
     /// Set the cursor theme (async)
     pub async fn call_async<Str: FDisplay>(theme: Str, size: u16) -> crate::Result<()> {
-        write_to_socket(
-            SocketType::Command,
-            command!(Empty, "setcursor {theme} {size}"),
-        )
-        .await?;
+        write_to_socket(SocketType::Command, command!(Empty, "setcursor {theme} {size}")).await?;
         Ok(())
     }
 }
@@ -76,10 +69,7 @@ pub mod output {
 
     /// Create virtual displays
     pub fn create(backend: OutputBackends) -> crate::Result<()> {
-        write_to_socket_sync(
-            SocketType::Command,
-            command!(Empty, "output create {backend}"),
-        )?;
+        write_to_socket_sync(SocketType::Command, command!(Empty, "output create {backend}"))?;
         Ok(())
     }
     /// Remove virtual displays
@@ -119,11 +109,8 @@ pub mod switch_xkb_layout {
         device: Str,
         cmd: SwitchXKBLayoutCmdTypes,
     ) -> crate::Result<()> {
-        write_to_socket(
-            SocketType::Command,
-            command!(Empty, "switchxkblayout {device} {cmd}"),
-        )
-        .await?;
+        write_to_socket(SocketType::Command, command!(Empty, "switchxkblayout {device} {cmd}"))
+            .await?;
         Ok(())
     }
 }
@@ -133,19 +120,12 @@ pub mod set_error {
     use super::*;
     /// Creates a error that Hyprland will display
     pub fn call(color: Color, msg: String) -> crate::Result<()> {
-        write_to_socket_sync(
-            SocketType::Command,
-            command!(Empty, "seterror {color} {msg}"),
-        )?;
+        write_to_socket_sync(SocketType::Command, command!(Empty, "seterror {color} {msg}"))?;
         Ok(())
     }
     /// Creates a error that Hyprland will display (async)
     pub async fn call_async(color: Color, msg: String) -> crate::Result<()> {
-        write_to_socket(
-            SocketType::Command,
-            command!(Empty, "seterror {color} {msg}"),
-        )
-        .await?;
+        write_to_socket(SocketType::Command, command!(Empty, "seterror {color} {msg}")).await?;
         Ok(())
     }
 }
@@ -171,12 +151,7 @@ pub mod notify {
     pub fn call(icon: Icon, time: Duration, color: Color, msg: String) -> crate::Result<()> {
         write_to_socket_sync(
             SocketType::Command,
-            command!(
-                Empty,
-                "notify {} {} {color} {msg}",
-                icon as i8,
-                time.as_millis()
-            ),
+            command!(Empty, "notify {} {} {color} {msg}", icon as i8, time.as_millis()),
         )?;
         Ok(())
     }
@@ -189,12 +164,7 @@ pub mod notify {
     ) -> crate::Result<()> {
         write_to_socket(
             SocketType::Command,
-            command!(
-                Empty,
-                "notify {} {} {color} {msg}",
-                icon as i8,
-                time.as_millis()
-            ),
+            command!(Empty, "notify {} {} {color} {msg}", icon as i8, time.as_millis()),
         )
         .await?;
         Ok(())
@@ -214,11 +184,7 @@ pub mod dismissnotify {
             command!(
                 Empty,
                 "dismissnotify {}",
-                if let Some(amount) = amount {
-                    amount.to_string()
-                } else {
-                    (-1).to_string()
-                }
+                if let Some(amount) = amount { amount.to_string() } else { (-1).to_string() }
             ),
         )?;
         Ok(())
@@ -232,11 +198,7 @@ pub mod dismissnotify {
             command!(
                 Empty,
                 "dismissnotify {}",
-                if let Some(amount) = amount {
-                    amount.to_string()
-                } else {
-                    (-1).to_string()
-                }
+                if let Some(amount) = amount { amount.to_string() } else { (-1).to_string() }
             ),
         )
         .await?;
@@ -254,11 +216,7 @@ pub mod set_prop {
     use super::*;
 
     fn l(b: bool) -> &'static str {
-        if b {
-            "lock"
-        } else {
-            ""
-        }
+        if b { "lock" } else { "" }
     }
 
     /// Type that represents a prop
@@ -392,11 +350,7 @@ pub mod set_prop {
     pub fn call(ident: String, prop: PropType, lock: bool) -> crate::Result<()> {
         write_to_socket_sync(
             SocketType::Command,
-            command!(
-                Empty,
-                "setprop {ident} {prop} {}",
-                if lock { "lock" } else { "" }
-            ),
+            command!(Empty, "setprop {ident} {prop} {}", if lock { "lock" } else { "" }),
         )?;
         Ok(())
     }
@@ -404,11 +358,7 @@ pub mod set_prop {
     pub async fn call_async(ident: String, prop: PropType, lock: bool) -> crate::Result<()> {
         write_to_socket(
             SocketType::Command,
-            command!(
-                Empty,
-                "setprop {ident} {prop} {}",
-                if lock { "lock" } else { "" }
-            ),
+            command!(Empty, "setprop {ident} {prop} {}", if lock { "lock" } else { "" }),
         )
         .await?;
         Ok(())
@@ -430,11 +380,8 @@ pub mod plugin {
     }
     /// Loads a plugin, by path (async)
     pub async fn load_async(path: &Path) -> crate::Result<()> {
-        write_to_socket(
-            SocketType::Command,
-            command!(Empty, "plugin load {}", path.display()),
-        )
-        .await?;
+        write_to_socket(SocketType::Command, command!(Empty, "plugin load {}", path.display()))
+            .await?;
         Ok(())
     }
     /// Returns a list of all plugins

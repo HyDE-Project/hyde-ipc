@@ -3,11 +3,9 @@
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::{quote, ToTokens};
-use syn::{
-    parse::{Parse, ParseStream},
-    parse_macro_input, Block, ExprClosure, Result, Token, Type,
-};
+use quote::{ToTokens, quote};
+use syn::parse::{Parse, ParseStream};
+use syn::{Block, ExprClosure, Result, Token, Type, parse_macro_input};
 
 /// Creates a async closure
 #[proc_macro]
@@ -39,12 +37,7 @@ impl<T: Parse> Parse for If<T> {
         let true_branch: T = input.parse()?;
         input.parse::<Token![,]>()?;
         let false_branch: T = input.parse()?;
-        Ok(If {
-            type_to_match,
-            input_type,
-            true_branch,
-            false_branch,
-        })
+        Ok(If { type_to_match, input_type, true_branch, false_branch })
     }
 }
 
@@ -53,13 +46,11 @@ impl<T: Parse> Parse for If<T> {
 /// and if returns one of the branches
 #[proc_macro]
 pub fn block_if(input: TokenStream) -> TokenStream {
-    let If {
-        type_to_match,
-        input_type,
-        true_branch,
-        false_branch,
-    } = parse_macro_input!(input as If<Block>);
-    let used_branch = if type_to_match.to_token_stream().to_string()
+    let If { type_to_match, input_type, true_branch, false_branch } =
+        parse_macro_input!(input as If<Block>);
+    let used_branch = if type_to_match
+        .to_token_stream()
+        .to_string()
         == input_type.to_token_stream().to_string()
     {
         true_branch
@@ -79,13 +70,11 @@ pub fn block_if(input: TokenStream) -> TokenStream {
 /// and if returns one of the branches
 #[proc_macro]
 pub fn type_if(input: TokenStream) -> TokenStream {
-    let If {
-        type_to_match,
-        input_type,
-        true_branch,
-        false_branch,
-    } = parse_macro_input!(input as If<Type>);
-    let used_branch = if type_to_match.to_token_stream().to_string()
+    let If { type_to_match, input_type, true_branch, false_branch } =
+        parse_macro_input!(input as If<Type>);
+    let used_branch = if type_to_match
+        .to_token_stream()
+        .to_string()
         == input_type.to_token_stream().to_string()
     {
         true_branch
@@ -100,13 +89,11 @@ pub fn type_if(input: TokenStream) -> TokenStream {
 /// and if returns one of the branches
 #[proc_macro]
 pub fn expr_if(input: TokenStream) -> TokenStream {
-    let If {
-        type_to_match,
-        input_type,
-        true_branch,
-        false_branch,
-    } = parse_macro_input!(input as If<syn::Expr>);
-    let used_branch = if type_to_match.to_token_stream().to_string()
+    let If { type_to_match, input_type, true_branch, false_branch } =
+        parse_macro_input!(input as If<syn::Expr>);
+    let used_branch = if type_to_match
+        .to_token_stream()
+        .to_string()
         == input_type.to_token_stream().to_string()
     {
         true_branch
