@@ -5,6 +5,88 @@ use hyprland::dispatch::{
 };
 use hyprland::shared::Address;
 
+pub fn build_dispatch_cmd(dispatcher: &str, args: &[String]) -> Result<DispatchCmd, String> {
+    match dispatcher.to_lowercase().as_str() {
+        "exec" => Ok(DispatchCmd::Exec { command: args.to_vec() }),
+        "killactivewindow" => Ok(DispatchCmd::KillActiveWindow),
+        "togglefloating" => Ok(DispatchCmd::ToggleFloating { window: args.first().cloned() }),
+        "togglesplit" => Ok(DispatchCmd::ToggleSplit),
+        "toggleopaque" => Ok(DispatchCmd::ToggleOpaque),
+        "movecursortocorner" => Ok(DispatchCmd::MoveCursorToCorner {
+            corner: args
+                .first()
+                .cloned()
+                .unwrap_or_default(),
+        }),
+        "movecursor" => {
+            if args.len() != 2 {
+                return Err("movecursor requires x and y arguments".to_string());
+            }
+            let x = args[0]
+                .parse::<i64>()
+                .map_err(|_| "Invalid x value")?;
+            let y = args[1]
+                .parse::<i64>()
+                .map_err(|_| "Invalid y value")?;
+            Ok(DispatchCmd::MoveCursor { x, y })
+        },
+        "togglefullscreen" => Ok(DispatchCmd::ToggleFullscreen {
+            mode: args
+                .first()
+                .cloned()
+                .unwrap_or_default(),
+        }),
+        "movetoworkspace" => Ok(DispatchCmd::MoveToWorkspace {
+            workspace: args
+                .first()
+                .cloned()
+                .unwrap_or_default(),
+        }),
+        "workspace" => Ok(DispatchCmd::Workspace {
+            workspace: args
+                .first()
+                .cloned()
+                .unwrap_or_default(),
+        }),
+        "cyclewindow" => Ok(DispatchCmd::CycleWindow {
+            direction: args
+                .first()
+                .cloned()
+                .unwrap_or_default(),
+        }),
+        "movefocus" => Ok(DispatchCmd::MoveFocus {
+            direction: args
+                .first()
+                .cloned()
+                .unwrap_or_default(),
+        }),
+        "swapwindow" => Ok(DispatchCmd::SwapWindow {
+            direction: args
+                .first()
+                .cloned()
+                .unwrap_or_default(),
+        }),
+        "focuswindow" => Ok(DispatchCmd::FocusWindow {
+            window: args
+                .first()
+                .cloned()
+                .unwrap_or_default(),
+        }),
+        "togglefakefullscreen" => Ok(DispatchCmd::ToggleFakeFullscreen),
+        "togglepseudo" => Ok(DispatchCmd::TogglePseudo),
+        "togglepin" => Ok(DispatchCmd::TogglePin),
+        "centerwindow" => Ok(DispatchCmd::CenterWindow),
+        "bringactivetotop" => Ok(DispatchCmd::BringActiveToTop),
+        "focusurgentorlast" => Ok(DispatchCmd::FocusUrgentOrLast),
+        "focuscurrentorlast" => Ok(DispatchCmd::FocusCurrentOrLast),
+        "forcerendererreload" => Ok(DispatchCmd::ForceRendererReload),
+        "exit" => Ok(DispatchCmd::Exit),
+        "resizeactive" => Ok(DispatchCmd::ResizeActive { resize_params: args.to_vec() }),
+        "resizewindowpixel" => Ok(DispatchCmd::ResizeWindowPixel { resize_params: args.to_vec() }),
+        _ => Err(format!("Unknown dispatcher: {dispatcher}")),
+    }
+}
+
 /// Synchronously execute a dispatcher.
 ///
 /// # Arguments
@@ -103,6 +185,7 @@ pub fn parse_dispatcher(command: DispatchCmd) -> Result<DispatchType<'static>, S
             "BottomRight" => Ok(DispatchType::MoveCursorToCorner(Corner::BottomRight)),
             _ => Err(format!("Unknown corner: {corner}")),
         },
+        DispatchCmd::MoveCursor { x, y } => Ok(DispatchType::MoveCursor(x, y)),
         DispatchCmd::ToggleFullscreen { mode } => match mode.as_str() {
             "Real" => Ok(DispatchType::ToggleFullscreen(FullscreenType::Real)),
             "Maximize" => Ok(DispatchType::ToggleFullscreen(FullscreenType::Maximize)),

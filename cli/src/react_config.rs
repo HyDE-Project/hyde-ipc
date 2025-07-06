@@ -1,4 +1,3 @@
-use crate::flags::Dispatch as DispatchCmd;
 use hyprland::dispatch::Dispatch;
 use hyprland::event_listener::EventListener;
 use serde::{Deserialize, Serialize};
@@ -6,76 +5,6 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{fmt, fs};
-
-fn build_dispatch_cmd(dispatcher: &str, args: &[String]) -> Result<DispatchCmd, String> {
-    match dispatcher {
-        "Exec" => Ok(DispatchCmd::Exec { command: args.to_vec() }),
-        "KillActiveWindow" => Ok(DispatchCmd::KillActiveWindow),
-        "ToggleFloating" => Ok(DispatchCmd::ToggleFloating { window: args.first().cloned() }),
-        "ToggleSplit" => Ok(DispatchCmd::ToggleSplit),
-        "ToggleOpaque" => Ok(DispatchCmd::ToggleOpaque),
-        "MoveCursorToCorner" => Ok(DispatchCmd::MoveCursorToCorner {
-            corner: args
-                .first()
-                .cloned()
-                .unwrap_or_default(),
-        }),
-        "ToggleFullscreen" => Ok(DispatchCmd::ToggleFullscreen {
-            mode: args
-                .first()
-                .cloned()
-                .unwrap_or_default(),
-        }),
-        "MoveToWorkspace" => Ok(DispatchCmd::MoveToWorkspace {
-            workspace: args
-                .first()
-                .cloned()
-                .unwrap_or_default(),
-        }),
-        "Workspace" => Ok(DispatchCmd::Workspace {
-            workspace: args
-                .first()
-                .cloned()
-                .unwrap_or_default(),
-        }),
-        "CycleWindow" => Ok(DispatchCmd::CycleWindow {
-            direction: args
-                .first()
-                .cloned()
-                .unwrap_or_default(),
-        }),
-        "MoveFocus" => Ok(DispatchCmd::MoveFocus {
-            direction: args
-                .first()
-                .cloned()
-                .unwrap_or_default(),
-        }),
-        "SwapWindow" => Ok(DispatchCmd::SwapWindow {
-            direction: args
-                .first()
-                .cloned()
-                .unwrap_or_default(),
-        }),
-        "FocusWindow" => Ok(DispatchCmd::FocusWindow {
-            window: args
-                .first()
-                .cloned()
-                .unwrap_or_default(),
-        }),
-        "ToggleFakeFullscreen" => Ok(DispatchCmd::ToggleFakeFullscreen),
-        "TogglePseudo" => Ok(DispatchCmd::TogglePseudo),
-        "TogglePin" => Ok(DispatchCmd::TogglePin),
-        "CenterWindow" => Ok(DispatchCmd::CenterWindow),
-        "BringActiveToTop" => Ok(DispatchCmd::BringActiveToTop),
-        "FocusUrgentOrLast" => Ok(DispatchCmd::FocusUrgentOrLast),
-        "FocusCurrentOrLast" => Ok(DispatchCmd::FocusCurrentOrLast),
-        "ForceRendererReload" => Ok(DispatchCmd::ForceRendererReload),
-        "Exit" => Ok(DispatchCmd::Exit),
-        "ResizeActive" => Ok(DispatchCmd::ResizeActive { resize_params: args.to_vec() }),
-        "ResizeWindowPixel" => Ok(DispatchCmd::ResizeWindowPixel { resize_params: args.to_vec() }),
-        _ => Err(format!("Unknown dispatcher: {dispatcher}")),
-    }
-}
 
 /// Types of window events
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -226,7 +155,6 @@ impl Reaction {
     /// * `Ok(false)` if the max count was reached.
     /// * `Err(String)` if a dispatcher fails to parse.
     pub fn execute(&self, count: &Arc<AtomicUsize>) -> Result<bool, String> {
-        // Check if we've reached the maximum count
         let max_count = self.max_count.unwrap_or(0);
         let current = if max_count > 0 {
             let current = count.fetch_add(1, Ordering::SeqCst) + 1;
@@ -238,15 +166,12 @@ impl Reaction {
             0
         };
 
-        // Get all dispatchers to execute
         let mut all_dispatchers = Vec::new();
 
-        // Handle legacy format (dispatcher + args fields)
         if let Some(dispatcher) = &self.dispatcher {
             all_dispatchers.push(Dispatcher { name: dispatcher.clone(), args: self.args.clone() });
         }
 
-        // Add dispatchers from the new format
         all_dispatchers.extend(self.dispatchers.clone());
 
         if all_dispatchers.is_empty() {
@@ -259,7 +184,6 @@ impl Reaction {
             all_dispatchers.len()
         );
 
-        // Execute all dispatchers in sequence
         for (index, dispatcher) in all_dispatchers.iter().enumerate() {
             println!(
                 "Executing dispatcher {}/{}: {} {:?}",
@@ -269,7 +193,8 @@ impl Reaction {
                 dispatcher.args
             );
 
-            let dispatch_cmd = build_dispatch_cmd(&dispatcher.name, &dispatcher.args)?;
+            let dispatch_cmd =
+                super::dispatch::build_dispatch_cmd(&dispatcher.name, &dispatcher.args)?;
             match super::dispatch::parse_dispatcher(dispatch_cmd) {
                 Ok(dispatch_type) => {
                     if let Err(e) = Dispatch::call(dispatch_type) {
@@ -282,7 +207,6 @@ impl Reaction {
             }
         }
 
-        // Return whether we should continue (i.e., haven't reached max_count)
         if max_count > 0 && current >= max_count {
             println!("Reached maximum reaction count ({max_count})");
             Ok(false)
@@ -316,12 +240,10 @@ impl ReactionManager {
 
         let mut event_listener = EventListener::new();
 
-        // Set up handlers for all event types
         for (reaction, counter) in &self.reactions {
             self.setup_handler(&mut event_listener, reaction, counter)?;
         }
 
-        // Start the listener
         event_listener
             .start_listener()
             .map_err(|e| format!("{e}"))
@@ -340,21 +262,20 @@ impl ReactionManager {
         match &reaction.event_type {
             EventType::Window(WindowEventType::Opened) => {
                 event_listener.add_window_opened_handler(move |data| {
-                    // Check if we need to filter by window title or class for opened events
                     if let Some(filter) = &reaction_clone.window_filter {
                         if let Some(title_pattern) = filter.strip_prefix("title:") {
                             if !data
                                 .window_title
                                 .contains(title_pattern)
                             {
-                                return; // Skip if window title doesn't match
+                                return;
                             }
                         } else if let Some(class_pattern) = filter.strip_prefix("class:") {
                             if !data
                                 .window_class
                                 .contains(class_pattern)
                             {
-                                return; // Skip if window class doesn't match
+                                return;
                             }
                         }
                     }
@@ -367,7 +288,6 @@ impl ReactionManager {
             EventType::Window(WindowEventType::Closed) => {
                 let has_window_filter = reaction.window_filter.is_some();
                 event_listener.add_window_closed_handler(move |_address| {
-                    // For closed window events, window filters aren't applicable
                     if has_window_filter {
                         println!("Note: Window filter ignored for closed events");
                     }
@@ -380,7 +300,6 @@ impl ReactionManager {
             EventType::Window(WindowEventType::Moved) => {
                 let has_window_filter = reaction.window_filter.is_some();
                 event_listener.add_window_moved_handler(move |_move_data| {
-                    // For moved window events, window filters aren't applicable
                     if has_window_filter {
                         println!("Note: Window filter ignored for move events");
                     }
@@ -392,7 +311,6 @@ impl ReactionManager {
             },
             EventType::Window(WindowEventType::Active) => {
                 event_listener.add_active_window_changed_handler(move |data| {
-                    // Check if we have window data and need to filter
                     if let Some(window_data) = data.as_ref() {
                         if let Some(filter) = &reaction_clone.window_filter {
                             if let Some(title_pattern) = filter.strip_prefix("title:") {
@@ -400,19 +318,18 @@ impl ReactionManager {
                                     .title
                                     .contains(title_pattern)
                                 {
-                                    return; // Skip if window title doesn't match
+                                    return;
                                 }
                             } else if let Some(class_pattern) = filter.strip_prefix("class:") {
                                 if !window_data
                                     .class
                                     .contains(class_pattern)
                                 {
-                                    return; // Skip if window class doesn't match
+                                    return;
                                 }
                             }
                         }
                     } else if reaction_clone.window_filter.is_some() {
-                        // If we have a window filter but no window data, skip
                         return;
                     }
 
@@ -512,12 +429,39 @@ pub struct ReactConfig {
 }
 
 impl ReactConfig {
+    // TODO: remove json since it's not needed anymore
+    //
+    // e.g.
+    //     impl ReactConfig {
+    //     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
+    //         let content = fs::read_to_string(path.as_ref())
+    //             .map_err(|e| format!("Failed to read config file: {e}"))?;
+    //
+    //         toml::from_str(&content)
+    //             .map_err(|e| format!("Failed to parse TOML config file: {e}"))
+    //     }
+    //
+    //     pub fn run(&self) -> Result<(), String> {
+    //         let mut manager = ReactionManager::new();
+    //
+    //         for reaction in &self.reactions {
+    //             manager.add_reaction(reaction.clone());
+    //         }
+    //
+    //         manager.start()
+    //     }
+    // }
+
     /// Load a ReactConfig from a file (JSON or TOML).
+    /// ```bash
+    /// hyde-ipc global path/to/config.toml
+    /// ````
+    /// > [!WARN]
+    /// > make sure the `hyde-ipc.service` is running
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
         let content = fs::read_to_string(path.as_ref())
             .map_err(|e| format!("Failed to read config file: {e}"))?;
 
-        // Determine file format based on extension
         let extension = path
             .as_ref()
             .extension()
@@ -529,12 +473,9 @@ impl ReactConfig {
                 .map_err(|e| format!("Failed to parse JSON config file: {e}")),
             "toml" => toml::from_str(&content)
                 .map_err(|e| format!("Failed to parse TOML config file: {e}")),
-            _ => {
-                // Try JSON first, then TOML if JSON fails
-                serde_json::from_str(&content)
-                    .or_else(|_| toml::from_str(&content))
-                    .map_err(|e| format!("Failed to parse config file: {e}"))
-            },
+            _ => serde_json::from_str(&content)
+                .or_else(|_| toml::from_str(&content))
+                .map_err(|e| format!("Failed to parse config file: {e}")),
         }
     }
 
@@ -554,11 +495,9 @@ impl ReactConfig {
 pub fn run_from_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
     println!("Loading reactions from {}", path.as_ref().display());
 
-    // Load the config from the file
     let config = ReactConfig::from_file(path)?;
 
     println!("Loaded {} reactions", config.reactions.len());
 
-    // Run the reactions
     config.run()
 }

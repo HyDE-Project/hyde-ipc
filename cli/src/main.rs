@@ -6,13 +6,14 @@ mod dispatch;
 mod flags;
 mod keyword;
 mod listen;
+mod query;
 mod react;
 mod react_config;
 mod setup;
 
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
-use flags::{Cli, Commands, DispatchCommand};
+use flags::{Cli, Commands, DispatchCommand, QueryCommand};
 use std::path::PathBuf;
 use std::{env, fs, io, process};
 
@@ -81,17 +82,7 @@ pub fn main() {
                 process::exit(1);
             }
         },
-        Commands::React {
-            r#async,
-            config,
-            inline: _,
-            event,
-            subtype,
-            filter,
-            dispatcher,
-            args,
-            max_reactions,
-        } => {
+        Commands::React { config, inline: _, event, subtype, filter, dispatch, max_reactions } => {
             if let Some(config_path) = config {
                 if let Err(e) = react_config::run_from_config(&config_path) {
                     eprintln!("Error running from config: {e}");
@@ -104,17 +95,15 @@ pub fn main() {
                 print_usage_and_exit();
                 String::new()
             });
-            let dispatcher = dispatcher.unwrap_or_else(|| {
-                eprintln!("Error: dispatcher is required");
-                print_usage_and_exit();
-                String::new()
-            });
-            if r#async {
-                println!("Note: async flag is deprecated");
-            }
-            if let Err(e) =
-                react::sync_react(event, subtype, filter, dispatcher, args, max_reactions)
-            {
+            let dispatch = match dispatch {
+                Some(d) => d,
+                None => {
+                    eprintln!("Error: dispatch is required");
+                    print_usage_and_exit();
+                    unreachable!();
+                },
+            };
+            if let Err(e) = react::sync_react(event, subtype, filter, dispatch, max_reactions) {
                 eprintln!("Error: {e}");
                 process::exit(1);
             }
@@ -193,6 +182,9 @@ pub fn main() {
             let bin_name = cmd.get_name().to_string();
             generate(shell, &mut cmd, bin_name, &mut io::stdout());
         },
+        Commands::Query(query_command) => {
+            query::run_query(query_command.command);
+        },
     }
 }
 fn print_usage_and_exit() {
@@ -203,96 +195,96 @@ fn print_usage_and_exit() {
 fn print_dispatchers_list() {
     let list = r#"Available dispatchers:
   Basic commands:
-  Exec <command>                            - Execute a command
-  KillActiveWindow                          - Kill the active window
-  Exit                                      - Exit Hyprland
-  ForceRendererReload                       - Force the renderer to reload
+  exec <command>                                    - Execute a command
+  kill-active-window                                  - Kill the active window
+  exit                                              - Exit Hyprland
+  force-renderer-reload                               - Force the renderer to reload
 
   Window management:
-  ToggleFloating [window]                   - Toggle floating mode for a window
-  ToggleFullscreen <type>                   - Toggle fullscreen mode (Real, Maximize, NoParam)
-  ToggleFakeFullscreen                      - Toggle fake fullscreen for the active window
-  TogglePseudo                              - Toggle pseudo tiling for the active window
-  TogglePin                                 - Pin the active window to all workspaces
-  ToggleOpaque                              - Toggle opacity for the active window
-  CenterWindow                              - Center the active window
-  BringActiveToTop                          - Bring the active window to the top of the stack
+  toggle-floating [window]                           - Toggle floating mode for a window
+  toggle-fullscreen <type>                           - Toggle fullscreen mode (Real, Maximize, NoParam)
+  toggle-fake-fullscreen                              - Toggle fake fullscreen for the active window
+  toggle-pseudo                                      - Toggle pseudo tiling for the active window
+  toggle-pin                                         - Pin the active window to all workspaces
+  toggle-opaque                                      - Toggle opacity for the active window
+  center-window                                      - Center the active window
+  bring-active-to-top                                  - Bring the active window to the top of the stack
 
   Focus control:
-  MoveFocus <direction>                     - Move focus in a direction (Up, Down, Left, Right)
-  FocusWindow <window>                      - Focus a specific window
-  FocusMonitor <identifier>                 - Focus a specific monitor
-  FocusUrgentOrLast                         - Focus the urgent window or the last one
-  FocusCurrentOrLast                        - Switch focus between current and last window
+  move-focus <direction>                             - Move focus in a direction (Up, Down, Left, Right)
+  focus-window <window>                              - Focus a specific window
+  focus-monitor <identifier>                         - Focus a specific monitor
+  focus-urgent-or-last                                 - Focus the urgent window or the last one
+  focus-current-or-last                                - Switch focus between current and last window
 
   Window movement:
-  MoveWindow <direction>                    - Move window in a direction
-  MoveActive <position>                     - Move the active window to a position
-  MoveWindowPixel <position> <win>          - Move a specific window to a position
-  ResizeActive <position>                   - Resize the active window
-  ResizeWindowPixel <pos> <win>             - Resize a specific window
+  move-window <direction>                            - Move window in a direction
+  move-active <position>                             - Move the active window to a position
+  move-window-pixel <position> <win>                  - Move a specific window to a position
+  resize-active <position>                           - Resize the active window
+  resize-window-pixel <pos> <win>                     - Resize a specific window
 
   Workspace management:
-  Workspace <workspace>                     - Switch to workspace (number, previous, empty, name:NAME)
-  MoveToWorkspace <workspace>               - Move window to workspace
-  MoveToWorkspaceSilent <workspace>         - Move window to workspace without switching to it
-  RenameWorkspace <id> <name>               - Rename a workspace
+  workspace <workspace>                             - Switch to workspace (number, previous, empty, name:NAME)
+  move-to-workspace <workspace>                       - Move window to workspace
+  move-to-workspace-silent <workspace>                 - Move window to workspace without switching to it
+  rename-workspace <id> <name>                       - Rename a workspace
 
   Cycling and swapping:
-  CycleWindow <direction>                   - Cycle windows (Next, Previous)
-  SwapNext <direction>                      - Swap with next window (Next, Previous)
-  SwapWindow <direction>                    - Swap windows in a direction (Up, Down, Left, Right)
+  cycle-window <direction>                           - Cycle windows (Next, Previous)
+  swap-next <direction>                              - Swap with next window (Next, Previous)
+  swap-window <direction>                            - Swap windows in a direction (Up, Down, Left, Right)
 
   Cursor control:
-  MoveCursorToCorner <corner>               - Move cursor to a corner (TopLeft, TopRight, BottomLeft, BottomRight)
-  MoveCursor <x> <y>                        - Move cursor to a position
-  SetCursor <theme> <size>                  - Set cursor theme and size
+  move-cursor-to-corner <corner>                       - Move cursor to a corner (TopLeft, TopRight, BottomLeft, BottomRight)
+  move-cursor <x> <y>                                - Move cursor to a position
+  set-cursor <theme> <size>                          - Set cursor theme and size
 
   Monitor management:
-  MoveCurrentWorkspaceToMonitor <mon>       - Move current workspace to a monitor
-  MoveWorkspaceToMonitor <ws> <mon>         - Move a workspace to a monitor
-  SwapActiveWorkspaces <mon1> <mon2>        - Swap active workspaces of two monitors
-  ToggleDPMS <on/off> [monitor]             - Toggle DPMS status for monitors
+  move-current-workspace-to-monitor <mon>               - Move current workspace to a monitor
+  move-workspace-to-monitor <ws> <mon>                 - Move a workspace to a monitor
+  swap-active-workspaces <mon1> <mon2>                - Swap active workspaces of two monitors
+  toggle-dpms <on/off> [monitor]                     - Toggle DPMS status for monitors
 
   Layout-specific commands (Dwindle):
-  ToggleSplit                               - Toggle the split orientation
+  toggle-split                                       - Toggle the split orientation
 
   Layout-specific commands (Master):
-  SwapWithMaster <param>                    - Swap with master window (Master, Child, Auto)
-  FocusMaster <param>                       - Focus the master window (Master, Auto)
-  AddMaster                                 - Add a master to the master side
-  RemoveMaster                              - Remove a master from the master side
-  OrientationLeft                           - Set orientation to left
-  OrientationRight                          - Set orientation to right
-  OrientationTop                            - Set orientation to top
-  OrientationBottom                         - Set orientation to bottom
-  OrientationCenter                         - Set orientation to center
-  OrientationNext                           - Cycle to next orientation
-  OrientationPrev                           - Cycle to previous orientation
+  swap-with-master <param>                            - Swap with master window (Master, Child, Auto)
+  focus-master <param>                               - Focus the master window (Master, Auto)
+  add-master                                         - Add a master to the master side
+  remove-master                                      - Remove a master from the master side
+  orientation-left                                   - Set orientation to left
+  orientation-right                                  - Set orientation to right
+  orientation-top                                    - Set orientation to top
+  orientation-bottom                                 - Set orientation to bottom
+  orientation-center                                 - Set orientation to center
+  orientation-next                                   - Cycle to next orientation
+  orientation-prev                                   - Cycle to previous orientation
 
   Window grouping:
-  ToggleGroup                               - Toggle the current window into a group
-  ChangeGroupActive <direction>             - Switch to next window in group (Forward, Back)
-  LockGroups <action>                       - Lock groups (Lock, Unlock, ToggleLock)
-  MoveIntoGroup <direction>                 - Move window into group in direction
-  MoveOutOfGroup                            - Move window out of group
+  toggle-group                                       - Toggle the current window into a group
+  change-group-active <direction>                     - Switch to next window in group (Forward, Back)
+  lock-groups <action>                               - Lock groups (Lock, Unlock, ToggleLock)
+  move-into-group <direction>                         - Move window into group in direction
+  move-out-of-group                                    - Move window out of group
 
-Window identifiers (can be used with ToggleFloating, FocusWindow, etc.):
+Window identifiers (can be used with toggle-floating, focus-window, etc.):
   class:REGEX                               - Match window by class regex
   title:REGEX                               - Match window by title regex
   pid:PID                                   - Match window by process ID
   address:ADDR                              - Match window by address (hex value, with or without 0x prefix)
 
 Examples:
-  hypr-rs dispatch Exec "kitty"
-  hypr-rs dispatch MoveCursorToCorner TopLeft
-  hypr-rs dispatch Workspace 1
-  hypr-rs dispatch --async ToggleFullscreen Maximize
-  hypr-rs dispatch CycleWindow Next
-  hypr-rs dispatch MoveFocus Right
-  hypr-rs dispatch ToggleFloating "class:^(Google-chrome)$"
-  hypr-rs dispatch FocusWindow "title:^(.*Terminal.*)$"
-  hypr-rs dispatch ToggleFloating address:5934277460f0
+  hypr-rs dispatch exec "kitty"
+  hypr-rs dispatch move-cursor-to-corner TopLeft
+  hypr-rs dispatch workspace 1
+  hypr-rs dispatch --async toggle-fullscreen Maximize
+  hypr-rs dispatch cycle-window Next
+  hypr-rs dispatch move-focus Right
+  hypr-rs dispatch toggle-floating "class:^(Google-chrome)$"
+  hypr-rs dispatch focus-window "title:^(.*Terminal.*)$"
+  hypr-rs dispatch toggle-floating address:5934277460f0
 "#;
     println!("{list}");
 }
