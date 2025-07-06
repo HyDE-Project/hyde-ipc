@@ -1,7 +1,6 @@
-use crate::dispatch::parse_dispatcher;
+use crate::dispatch;
 use crate::flags::Dispatch as DispatchCmd;
 
-use hyprland::dispatch::Dispatch;
 use hyprland::event_listener::EventListener;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -170,22 +169,59 @@ fn setup_event_handlers(
     Ok(())
 }
 
-fn handle_event(dispatch: DispatchCmd, count: &Arc<AtomicUsize>, max_reactions: usize) {
+fn handle_event(dispatch_cmd: DispatchCmd, count: &Arc<AtomicUsize>, max_reactions: usize) {
     let current = if max_reactions > 0 { count.fetch_add(1, Ordering::SeqCst) + 1 } else { 0 };
 
-    match parse_dispatcher(dispatch) {
-        Ok(dispatch_type) => {
-            println!("Event triggered! Executing: {dispatch_type:?}");
-            if let Err(e) = Dispatch::call(dispatch_type) {
-                eprintln!("Error executing dispatcher: {e}");
-            }
-            if max_reactions > 0 && current >= max_reactions {
-                println!("Reached maximum number of reactions ({max_reactions}). Exiting...");
-                std::process::exit(0);
-            }
+    let (dispatcher, args) = match dispatch_cmd {
+        DispatchCmd::Exec { command } => ("exec", command),
+        DispatchCmd::KillActiveWindow => ("killactivewindow", vec![]),
+        DispatchCmd::ToggleFloating { window } => (
+            "togglefloating",
+            window
+                .class
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+        ),
+        DispatchCmd::ToggleSplit => ("togglesplit", vec![]),
+        DispatchCmd::ToggleOpaque => ("toggleopaque", vec![]),
+        DispatchCmd::MoveCursorToCorner { corner } => ("movecursortocorner", vec![corner]),
+        DispatchCmd::MoveCursor { x, y } => ("movecursor", vec![x.to_string(), y.to_string()]),
+        DispatchCmd::ToggleFullscreen { mode } => ("togglefullscreen", vec![mode]),
+        DispatchCmd::MoveToWorkspace { workspace } => ("movetoworkspace", vec![workspace]),
+        DispatchCmd::Workspace { workspace } => ("workspace", vec![workspace]),
+        DispatchCmd::CycleWindow { direction } => ("cyclewindow", vec![direction]),
+        DispatchCmd::MoveFocus { direction } => ("movefocus", vec![direction]),
+        DispatchCmd::SwapWindow { direction } => ("swapwindow", vec![direction]),
+        DispatchCmd::FocusWindow { window } => (
+            "focuswindow",
+            window
+                .class
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+        ),
+        DispatchCmd::MoveWindow { target } => ("movewindow", vec![target]),
+        DispatchCmd::ToggleFakeFullscreen => ("togglefakefullscreen", vec![]),
+        DispatchCmd::TogglePseudo => ("togglepseudo", vec![]),
+        DispatchCmd::TogglePin => ("togglepin", vec![]),
+        DispatchCmd::CenterWindow => ("centerwindow", vec![]),
+        DispatchCmd::BringActiveToTop => ("bringactivetotop", vec![]),
+        DispatchCmd::FocusUrgentOrLast => ("focusurgentorlast", vec![]),
+        DispatchCmd::FocusCurrentOrLast => ("focuscurrentorlast", vec![]),
+        DispatchCmd::ForceRendererReload => ("forcerendererreload", vec![]),
+        DispatchCmd::Exit => ("exit", vec![]),
+        _ => {
+            eprintln!("Dispatcher not fully implemented in react.rs handler yet.");
+            return;
         },
-        Err(e) => {
-            eprintln!("Error parsing dispatcher: {e}");
-        },
+    };
+
+    println!("Event triggered! Executing: {dispatcher} with args: {args:?}");
+    dispatch::sync_dispatch(dispatcher, &args);
+
+    if max_reactions > 0 && current >= max_reactions {
+        println!("Reached maximum number of reactions ({max_reactions}). Exiting...");
+        std::process::exit(0);
     }
 }

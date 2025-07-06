@@ -4,9 +4,9 @@ use service_manager::{
 };
 use std::error::Error;
 use std::ffi::OsString;
+use std::fmt;
 use std::path::PathBuf;
 use std::process::Command;
-use std::fmt;
 
 #[derive(Debug)]
 pub enum ServiceError {
@@ -24,15 +24,15 @@ pub enum ServiceError {
 impl fmt::Display for ServiceError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ServiceError::Manager(e) => write!(f, "Failed to get service manager: {}", e),
-            ServiceError::Install(e) => write!(f, "Failed to install service: {}", e),
-            ServiceError::Uninstall(e) => write!(f, "Failed to uninstall service: {}", e),
-            ServiceError::Start(e) => write!(f, "Failed to start service: {}", e),
-            ServiceError::Stop(e) => write!(f, "Failed to stop service: {}", e),
-            ServiceError::Status(e) => write!(f, "Failed to get service status: {}", e),
-            ServiceError::Io(e) => write!(f, "IO error: {}", e),
-            ServiceError::UserLevel(e) => write!(f, "Failed to set user level: {}", e),
-            ServiceError::Config(e) => write!(f, "Failed to get config path: {}", e),
+            ServiceError::Manager(e) => write!(f, "Failed to get service manager: {e}"),
+            ServiceError::Install(e) => write!(f, "Failed to install service: {e}"),
+            ServiceError::Uninstall(e) => write!(f, "Failed to uninstall service: {e}"),
+            ServiceError::Start(e) => write!(f, "Failed to start service: {e}"),
+            ServiceError::Stop(e) => write!(f, "Failed to stop service: {e}"),
+            ServiceError::Status(e) => write!(f, "Failed to get service status: {e}"),
+            ServiceError::Io(e) => write!(f, "IO error: {e}"),
+            ServiceError::UserLevel(e) => write!(f, "Failed to set user level: {e}"),
+            ServiceError::Config(e) => write!(f, "Failed to get config path: {e}"),
         }
     }
 }
@@ -98,9 +98,7 @@ pub fn install() -> Result<()> {
         .trim()
         .to_string();
 
-    let config_path: OsString = get_config_path()?
-        .into_os_string()
-        .into();
+    let config_path: OsString = get_config_path()?.into_os_string();
 
     manager
         .install(ServiceInstallCtx {
@@ -164,7 +162,7 @@ pub fn stop() -> Result<()> {
 pub fn restart() -> Result<()> {
     println!("Restarting service...");
     if let Err(e) = stop() {
-        eprintln!("Failed to stop service during restart: {}. Continuing to start...", e);
+        eprintln!("Failed to stop service during restart: {e}. Continuing to start...");
     }
     start()
 }
@@ -195,11 +193,9 @@ pub fn watch_logs() -> Result<()> {
     let mut child = Command::new("journalctl")
         .args(["--user", "-fu", "hyde-ipc.service"])
         .spawn()
-        .map_err(|e| ServiceError::Io(e))?;
+        .map_err(ServiceError::Io)?;
 
-    let status = child
-        .wait()
-        .map_err(|e| ServiceError::Io(e))?;
+    let status = child.wait().map_err(ServiceError::Io)?;
     if !status.success() {
         return Err(ServiceError::Status("journalctl command failed".to_string()));
     }

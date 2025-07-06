@@ -11,7 +11,7 @@ mod react;
 mod react_config;
 
 use clap::{CommandFactory, Parser};
-use flags::{Cli, Commands, DispatchCommand};
+use flags::{Cli, Commands, Dispatch, DispatchCommand, ResizeCmd};
 use hyde_ipc_lib::service;
 use std::{fs, process};
 
@@ -44,30 +44,7 @@ pub fn main() {
             }
 
             if let Some(command) = dispatch_command.command {
-                if dispatch_command.r#async {
-                    let rt = tokio::runtime::Builder::new_current_thread()
-                        .enable_all()
-                        .build()
-                        .unwrap();
-
-                    rt.block_on(async {
-                        let (tx, rx) = tokio::sync::oneshot::channel();
-
-                        tokio::spawn(async move {
-                            let result = dispatch::async_dispatch(command).await;
-                            let _ = tx.send(result);
-                        });
-
-                        match rx.await {
-                            Ok(_) => (),
-                            Err(_) => {
-                                eprintln!("Warning: Async task was dropped before completion")
-                            },
-                        }
-                    });
-                } else {
-                    dispatch::sync_dispatch(command);
-                }
+                handle_dispatch(command, dispatch_command.r#async);
             } else {
                 DispatchCommand::command()
                     .print_help()
@@ -171,6 +148,89 @@ pub fn main() {
         },
     }
 }
+
+fn handle_dispatch(command: Dispatch, is_async: bool) {
+    let (dispatcher, args) = match command {
+        Dispatch::Exec { command } => ("exec", command),
+        Dispatch::KillActiveWindow => ("killactivewindow", vec![]),
+        Dispatch::ToggleFloating { window } => (
+            "togglefloating",
+            window
+                .class
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+        ),
+        Dispatch::ToggleSplit => ("togglesplit", vec![]),
+        Dispatch::ToggleOpaque => ("toggleopaque", vec![]),
+        Dispatch::MoveCursorToCorner { corner } => ("movecursortocorner", vec![corner]),
+        Dispatch::MoveCursor { x, y } => ("movecursor", vec![x.to_string(), y.to_string()]),
+        Dispatch::ToggleFullscreen { mode } => ("togglefullscreen", vec![mode]),
+        Dispatch::MoveToWorkspace { workspace } => ("movetoworkspace", vec![workspace]),
+        Dispatch::Workspace { workspace } => ("workspace", vec![workspace]),
+        Dispatch::CycleWindow { direction } => ("cyclewindow", vec![direction]),
+        Dispatch::MoveFocus { direction } => ("movefocus", vec![direction]),
+        Dispatch::SwapWindow { direction } => ("swapwindow", vec![direction]),
+        Dispatch::FocusWindow { window } => (
+            "focuswindow",
+            window
+                .class
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+        ),
+        Dispatch::MoveWindow { target } => ("movewindow", vec![target]),
+        Dispatch::ToggleFakeFullscreen => ("togglefakefullscreen", vec![]),
+        Dispatch::TogglePseudo => ("togglepseudo", vec![]),
+        Dispatch::TogglePin => ("togglepin", vec![]),
+        Dispatch::CenterWindow => ("centerwindow", vec![]),
+        Dispatch::BringActiveToTop => ("bringactivetotop", vec![]),
+        Dispatch::FocusUrgentOrLast => ("focusurgentorlast", vec![]),
+        Dispatch::FocusCurrentOrLast => ("focuscurrentorlast", vec![]),
+        Dispatch::ForceRendererReload => ("forcerendererreload", vec![]),
+        Dispatch::Exit => ("exit", vec![]),
+        Dispatch::ResizeActive { params } => {
+            let args = match params {
+                ResizeCmd::Delta { dx, dy } => vec![dx.to_string(), dy.to_string()],
+                ResizeCmd::Exact { width, height } => vec![
+                    "exact".to_string(),
+                    width.to_string(),
+                    height.to_string(),
+                ],
+            };
+            ("resizeactive", args)
+        },
+        Dispatch::ResizeWindowPixel { params, window } => {
+            let mut args = match params {
+                ResizeCmd::Delta { dx, dy } => vec![dx.to_string(), dy.to_string()],
+                ResizeCmd::Exact { width, height } => vec![
+                    "exact".to_string(),
+                    width.to_string(),
+                    height.to_string(),
+                ],
+            };
+            if let Some(class) = window.class {
+                args.push(class);
+            }
+            ("resizewindowpixel", args)
+        },
+        _ => {
+            eprintln!("Dispatcher not fully implemented in main.rs handler yet.");
+            return;
+        },
+    };
+
+    if is_async {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(dispatch::async_dispatch(dispatcher, &args));
+    } else {
+        dispatch::sync_dispatch(dispatcher, &args);
+    }
+}
+
 fn print_usage_and_exit() {
     Cli::command().print_help().unwrap();
     process::exit(1);

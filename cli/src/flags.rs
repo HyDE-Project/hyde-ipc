@@ -204,6 +204,24 @@ pub struct DispatchCommand {
     pub command: Option<Dispatch>,
 }
 
+#[derive(clap::Args, Debug, Clone, Default)]
+pub struct WindowId {
+    #[arg(long, group = "winid")]
+    pub class: Option<String>,
+    #[arg(long, group = "winid")]
+    pub title: Option<String>,
+    #[arg(long, group = "winid")]
+    pub pid: Option<u32>,
+    #[arg(long, group = "winid")]
+    pub address: Option<String>,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum ResizeCmd {
+    Delta { dx: i16, dy: i16 },
+    Exact { width: i16, height: i16 },
+}
+
 #[derive(Subcommand, Debug, Clone)]
 pub enum Dispatch {
     /// Execute a command
@@ -211,7 +229,11 @@ pub enum Dispatch {
     /// Kill the active window
     KillActiveWindow,
     /// Toggle floating mode for a window
-    ToggleFloating { window: Option<String> },
+    #[command(group(ArgGroup::new("winid_toggle_floating").args(&["class", "title", "pid", "address"])))]
+    ToggleFloating {
+        #[command(flatten)]
+        window: WindowId,
+    },
     /// Toggle the split orientation
     ToggleSplit,
     /// Toggle opacity for the active window
@@ -234,10 +256,11 @@ pub enum Dispatch {
     /// Move window to workspace silently. Accepts a workspace number (e.g., '5'),
     /// relative movement (e.g., 'right:2', 'left:1'), or special keywords
     /// ('previous', 'empty', 'name:<name>').
+    #[command(group(ArgGroup::new("winid_movetoworkspacesilent").args(&["class", "title", "pid", "address"])))]
     MoveToWorkspaceSilent {
         workspace: String,
-        #[arg(long = "window")]
-        window: Option<String>,
+        #[command(flatten)]
+        window: WindowId,
     },
     /// Switch to a workspace. Accepts a workspace number (e.g., '5'),
     /// relative movement (e.g., 'right:2', 'left:1'), or special keywords
@@ -264,7 +287,11 @@ pub enum Dispatch {
         direction: String,
     },
     /// Focus a specific window
-    FocusWindow { window: String },
+    #[command(group(ArgGroup::new("winid_focus").required(true).args(&["class", "title", "pid", "address"])))]
+    FocusWindow {
+        #[command(flatten)]
+        window: WindowId,
+    },
     /// Toggle fake fullscreen
     ToggleFakeFullscreen,
     /// Toggle pseudo tiling
@@ -284,7 +311,16 @@ pub enum Dispatch {
     /// Exit Hyprland
     Exit,
     /// Resize the active window
-    ResizeActive { resize_params: Vec<String> },
+    ResizeActive {
+        #[command(subcommand)]
+        params: ResizeCmd,
+    },
     /// Resize a specific window by pixel
-    ResizeWindowPixel { resize_params: Vec<String> },
+    #[command(group(ArgGroup::new("winid_resize").required(true).args(&["class", "title", "pid", "address"])))]
+    ResizeWindowPixel {
+        #[command(subcommand)]
+        params: ResizeCmd,
+        #[command(flatten)]
+        window: WindowId,
+    },
 }
