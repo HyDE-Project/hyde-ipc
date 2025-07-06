@@ -9,7 +9,6 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
     let mut event_listener = EventListener::new();
     let count = Arc::new(AtomicUsize::new(0));
 
-    // Window events
     let count_clone = Arc::clone(&count);
     let filter_clone = filter.clone();
     event_listener.add_active_window_changed_handler(move |data| {
@@ -49,7 +48,6 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
         }
     });
 
-    // Float state
     let count_clone = Arc::clone(&count);
     let filter_clone = filter.clone();
     event_listener.add_float_state_changed_handler(move |data| {
@@ -62,7 +60,6 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
         }
     });
 
-    // Fullscreen state
     let count_clone = Arc::clone(&count);
     let filter_clone = filter.clone();
     event_listener.add_fullscreen_state_changed_handler(move |state| {
@@ -73,7 +70,6 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
         }
     });
 
-    // Workspace events
     let count_clone = Arc::clone(&count);
     let filter_clone = filter.clone();
     event_listener.add_workspace_changed_handler(move |id| {
@@ -101,7 +97,6 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
         }
     });
 
-    // Monitor events
     let count_clone = Arc::clone(&count);
     let filter_clone = filter.clone();
     event_listener.add_active_monitor_changed_handler(move |data| {
@@ -114,7 +109,6 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
         }
     });
 
-    // Layout events
     let count_clone = Arc::clone(&count);
     let filter_clone = filter.clone();
     event_listener.add_layout_changed_handler(move |data| {
@@ -127,7 +121,6 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
         }
     });
 
-    // Group events
     let count_clone = Arc::clone(&count);
     let filter_clone = filter.clone();
     event_listener.add_group_toggled_handler(move |data| {
@@ -159,7 +152,6 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
         }
     });
 
-    // Config events
     let count_clone = Arc::clone(&count);
     let filter_clone = filter.clone();
     event_listener.add_config_reloaded_handler(move || {
@@ -169,7 +161,6 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
         }
     });
 
-    // Start the listener
     event_listener.start_listener()
 }
 

@@ -193,9 +193,7 @@ impl Reaction {
                 dispatcher.args
             );
 
-            let dispatch_cmd =
-                super::dispatch::build_dispatch_cmd(&dispatcher.name, &dispatcher.args)?;
-            match super::dispatch::parse_dispatcher(dispatch_cmd) {
+            match super::dispatch::build_dispatch_cmd(&dispatcher.name, &dispatcher.args) {
                 Ok(dispatch_type) => {
                     if let Err(e) = Dispatch::call(dispatch_type) {
                         eprintln!("Error executing dispatcher: {e}");
@@ -429,30 +427,7 @@ pub struct ReactConfig {
 }
 
 impl ReactConfig {
-    // TODO: remove json since it's not needed anymore
-    //
-    // e.g.
-    //     impl ReactConfig {
-    //     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
-    //         let content = fs::read_to_string(path.as_ref())
-    //             .map_err(|e| format!("Failed to read config file: {e}"))?;
-    //
-    //         toml::from_str(&content)
-    //             .map_err(|e| format!("Failed to parse TOML config file: {e}"))
-    //     }
-    //
-    //     pub fn run(&self) -> Result<(), String> {
-    //         let mut manager = ReactionManager::new();
-    //
-    //         for reaction in &self.reactions {
-    //             manager.add_reaction(reaction.clone());
-    //         }
-    //
-    //         manager.start()
-    //     }
-    // }
-
-    /// Load a ReactConfig from a file (JSON or TOML).
+    /// Load a ReactConfig from a TOML file.
     /// ```bash
     /// hyde-ipc global path/to/config.toml
     /// ````
@@ -462,21 +437,7 @@ impl ReactConfig {
         let content = fs::read_to_string(path.as_ref())
             .map_err(|e| format!("Failed to read config file: {e}"))?;
 
-        let extension = path
-            .as_ref()
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or("");
-
-        match extension.to_lowercase().as_str() {
-            "json" => serde_json::from_str(&content)
-                .map_err(|e| format!("Failed to parse JSON config file: {e}")),
-            "toml" => toml::from_str(&content)
-                .map_err(|e| format!("Failed to parse TOML config file: {e}")),
-            _ => serde_json::from_str(&content)
-                .or_else(|_| toml::from_str(&content))
-                .map_err(|e| format!("Failed to parse config file: {e}")),
-        }
+        toml::from_str(&content).map_err(|e| format!("Failed to parse TOML config file: {e}"))
     }
 
     /// Run all reactions in this config.

@@ -1,10 +1,9 @@
 use clap::{Command, CommandFactory};
-use clap_complete::{generate_to, Shell};
-use std::env;
-use std::fs;
+use clap_complete::{Shell, generate_to};
 use std::path::Path;
+use std::{env, fs};
 
-#[path="src/flags.rs"]
+#[path = "src/flags.rs"]
 mod flags;
 
 fn generate_completions(out_dir: &Path) {
@@ -13,7 +12,13 @@ fn generate_completions(out_dir: &Path) {
 
     fs::create_dir_all(out_dir).unwrap();
 
-    for shell in [Shell::Bash, Shell::Elvish, Shell::Fish, Shell::PowerShell, Shell::Zsh] {
+    for shell in [
+        Shell::Bash,
+        Shell::Elvish,
+        Shell::Fish,
+        Shell::PowerShell,
+        Shell::Zsh,
+    ] {
         generate_to(shell, &mut cmd, "hyde-ipc", out_dir).unwrap();
     }
 }
