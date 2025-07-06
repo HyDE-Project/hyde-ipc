@@ -11,11 +11,9 @@ mod react;
 mod react_config;
 
 use clap::{CommandFactory, Parser};
-use clap_complete::generate;
 use flags::{Cli, Commands, DispatchCommand};
 use hyde_ipc_lib::service;
-use std::path::Path;
-use std::{fs, io, process};
+use std::{fs, process};
 
 /// Main entry point for the hyde-ipc CLI.
 ///
@@ -76,8 +74,8 @@ pub fn main() {
                     .unwrap();
             }
         },
-        Commands::Listen { filter, max_events, json } => {
-            if let Err(e) = listen::listen(filter, max_events, json) {
+        Commands::Listen { filter, max_events } => {
+            if let Err(e) = listen::listen(filter, max_events) {
                 eprintln!("Error: {e}");
                 process::exit(1);
             }
@@ -167,11 +165,6 @@ pub fn main() {
                 eprintln!("Error restarting service: {e}");
                 process::exit(1);
             }
-        },
-        Commands::GenerateCompletion { shell } => {
-            let mut cmd = Cli::command();
-            let bin_name = cmd.get_name().to_string();
-            generate(shell, &mut cmd, bin_name, &mut io::stdout());
         },
         Commands::Query(query_command) => {
             query::run_query(query_command.command);

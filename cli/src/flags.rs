@@ -4,7 +4,6 @@
 //! options.
 
 use clap::{ArgGroup, Parser, Subcommand};
-use clap_complete::Shell;
 
 /// Command-line interface for hyde-ipc.
 #[derive(Parser, Debug)]
@@ -68,10 +67,6 @@ pub enum Commands {
             default_value = "0"
         )]
         max_events: usize,
-
-        /// Use JSON format for output
-        #[arg(short = 'j', long = "json")]
-        json: bool,
     },
 
     /// React to specific events by dispatching commands.
@@ -134,13 +129,6 @@ pub enum Commands {
         /// Path to the config file to load.
         #[arg(short = 'c', long)]
         config_path: String,
-    },
-
-    /// Generate shell completion scripts
-    GenerateCompletion {
-        /// The shell to generate the script for
-        #[arg(value_enum)]
-        shell: Shell,
     },
 
     /// Query Hyprland for information.

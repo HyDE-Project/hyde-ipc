@@ -6,7 +6,7 @@ use std::error::Error;
 use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::Command;
-use std::{env, fmt};
+use std::fmt;
 
 #[derive(Debug)]
 pub enum ServiceError {
