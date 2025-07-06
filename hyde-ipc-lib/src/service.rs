@@ -67,9 +67,7 @@ fn get_label() -> ServiceLabel {
     ServiceLabel { qualifier: None, organization: None, application: String::from("hyde-ipc") }
 }
 
-/// Returns the path to the hyde-ipc config file.
-///
-/// The path is `~/.local/share/hyde-ipc/config.toml`.
+
 pub fn get_config_path() -> Result<PathBuf> {
     let data_dir = dirs::data_dir()
         .ok_or_else(|| ServiceError::Config("Could not get user's data directory".to_string()))?;
@@ -79,7 +77,7 @@ pub fn get_config_path() -> Result<PathBuf> {
     Ok(path)
 }
 
-/// Installs and starts the hyde-ipc service.
+
 pub fn install() -> Result<()> {
     let label = get_label();
     let manager = get_manager()?;
@@ -118,7 +116,7 @@ pub fn install() -> Result<()> {
     start()
 }
 
-/// Uninstalls the hyde-ipc service.
+
 pub fn uninstall() -> Result<()> {
     if let Err(e) = stop() {
         eprintln!("Failed to stop service during uninstall: {e}. Continuing with uninstall...");
@@ -134,7 +132,7 @@ pub fn uninstall() -> Result<()> {
     Ok(())
 }
 
-/// Starts the hyde-ipc service.
+
 pub fn start() -> Result<()> {
     let label = get_label();
     let manager = get_manager()?;
@@ -146,7 +144,7 @@ pub fn start() -> Result<()> {
     Ok(())
 }
 
-/// Stops the hyde-ipc service.
+
 pub fn stop() -> Result<()> {
     let label = get_label();
     let manager = get_manager()?;
@@ -158,7 +156,7 @@ pub fn stop() -> Result<()> {
     Ok(())
 }
 
-/// Restarts the hyde-ipc service.
+
 pub fn restart() -> Result<()> {
     println!("Restarting service...");
     if let Err(e) = stop() {
@@ -167,10 +165,11 @@ pub fn restart() -> Result<()> {
     start()
 }
 
-/// Checks if the hyde-ipc service is active.
+
 pub fn is_active() -> Result<bool> {
-    // This is a workaround. The service-manager crate does not provide a cross-platform
-    // way to check if a service is running. We assume that if the start command
+    // FIX: before next release:
+    // This is a workaround.
+    // We assume that if the start command
     // succeeds, the service is running.
     let status = Command::new("systemctl")
         .args(["--user", "is-active", "hyde-ipc.service"])
@@ -178,7 +177,7 @@ pub fn is_active() -> Result<bool> {
     Ok(status.status.success())
 }
 
-/// Prints the status of the hyde-ipc service.
+
 pub fn status() -> Result<()> {
     if is_active()? {
         println!("Service is running.");
@@ -188,7 +187,7 @@ pub fn status() -> Result<()> {
     Ok(())
 }
 
-/// Follow the logs of the hyde-ipc service.
+
 pub fn watch_logs() -> Result<()> {
     let mut child = Command::new("journalctl")
         .args(["--user", "-fu", "hyde-ipc.service"])
