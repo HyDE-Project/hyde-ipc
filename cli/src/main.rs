@@ -9,13 +9,13 @@ mod listen;
 mod query;
 mod react;
 mod react_config;
-mod setup;
 
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 use flags::{Cli, Commands, DispatchCommand};
-use std::path::PathBuf;
-use std::{env, fs, io, process};
+use hyde_ipc_lib::service;
+use std::path::Path;
+use std::{fs, io, process};
 
 /// Main entry point for the hyde-ipc CLI.
 ///
@@ -108,74 +108,65 @@ pub fn main() {
                 process::exit(1);
             }
         },
-        Commands::Global { config_path, setup, kill, restart } => {
-            if kill {
-                let status = std::process::Command::new("systemctl")
-                    .args(["--user", "stop", "hyde-ipc.service"])
-                    .status();
-                match status {
-                    Ok(s) if s.success() => {
-                        println!("stopped successfully.");
-                        std::process::exit(0);
-                    },
-                    Ok(s) => {
-                        eprintln!("Failed to stop global reactions (exit code: {s}).");
-                        std::process::exit(1);
-                    },
-                    Err(e) => {
-                        eprintln!("Error stopping hyde-ipc.service: {e}");
-                        std::process::exit(1);
-                    },
-                }
-            }
-            if restart {
-                let status = std::process::Command::new("systemctl")
-                    .args(["--user", "restart", "hyde-ipc.service"])
-                    .status();
-                match status {
-                    Ok(s) if s.success() => {
-                        println!("restarted successfully.");
-                        std::process::exit(0);
-                    },
-                    Ok(s) => {
-                        eprintln!("Failed to restart global reactions (exit code: {s}).");
-                        std::process::exit(1);
-                    },
-                    Err(e) => {
-                        eprintln!("Error restarting hyde-ipc.service: {e}");
-                        std::process::exit(1);
-                    },
-                }
-            }
-            if setup {
-                setup::setup_service_file();
-                let home = env::var("HOME").expect("Could not get $HOME");
-                let dest_dir = PathBuf::from(&home).join(".local/share/hyde-ipc");
-                let dest = dest_dir.join("config.toml");
-                if let Err(e) = fs::create_dir_all(&dest_dir) {
-                    eprintln!("Error creating global config directory: {e}");
-                    std::process::exit(1);
-                }
-                if let Some(path) = config_path {
-                    setup::copy_and_reload_config(&path);
-                } else if !dest.exists() {
-                    if let Err(e) = fs::File::create(&dest) {
-                        eprintln!("Error creating empty config file: {e}");
-                        std::process::exit(1);
-                    }
-                }
+        Commands::Setup(setup_command) => {
+            let result = if setup_command.install {
+                service::install()
+            } else if setup_command.uninstall {
+                service::uninstall()
+            } else if setup_command.start {
+                service::start()
+            } else if setup_command.kill {
+                service::stop()
+            } else if setup_command.restart {
+                service::restart()
+            } else if setup_command.check {
+                service::status()
+            } else if setup_command.watch {
+                service::watch_logs()
             } else {
-                setup::ensure_service_setup();
-                if let Some(path) = config_path {
-                    setup::copy_and_reload_config(&path);
-                } else {
-                    eprintln!("Error: you must provide a config file unless using --setup");
-                    std::process::exit(1);
-                }
+                // This should not be reached due to the ArgGroup
+                Ok(())
+            };
+
+            if let Err(e) = result {
+                eprintln!("Error: {e}");
+                process::exit(1);
             }
         },
-        Commands::Setup => {
-            setup::setup_service_file();
+        Commands::Global { config_path } => {
+            let dest_path = match service::get_config_path() {
+                Ok(path) => path,
+                Err(e) => {
+                    eprintln!("Error getting config path: {e}");
+                    process::exit(1);
+                },
+            };
+
+            if let Some(parent) = dest_path.parent() {
+                if !parent.exists() {
+                    if let Err(e) = fs::create_dir_all(parent) {
+                        eprintln!("Error creating config directory: {e}");
+                        process::exit(1);
+                    }
+                }
+            }
+
+            if let Err(e) = fs::copy(&config_path, &dest_path) {
+                eprintln!(
+                    "Error copying config file from {} to {}: {}",
+                    config_path,
+                    dest_path.display(),
+                    e
+                );
+                process::exit(1);
+            }
+
+            println!("Config file copied to {}", dest_path.display());
+
+            if let Err(e) = service::restart() {
+                eprintln!("Error restarting service: {e}");
+                process::exit(1);
+            }
         },
         Commands::GenerateCompletion { shell } => {
             let mut cmd = Cli::command();

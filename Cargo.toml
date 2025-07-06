@@ -13,7 +13,7 @@ categories = ["API bindings"]
 
 
 [workspace]
-members = ["hyprland-macros", "hyprland-lib", "cli"]
+members = ["hyprland-macros", "hyprland-lib", "cli", "hyde-ipc-lib"]
 default-members = ["cli"]
 resolver = "3"
 

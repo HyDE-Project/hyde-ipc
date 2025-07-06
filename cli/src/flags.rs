@@ -126,23 +126,15 @@ pub enum Commands {
         max_reactions: usize,
     },
 
-    /// Install a config globally and manage the user service.
-    Global {
-        /// Path to the config file to install globally (optional if --setup is used)
-        config_path: Option<String>,
-        /// Also set up the user service file
-        #[arg(short = 's', long = "setup")]
-        setup: bool,
-        /// Stop the running service
-        #[arg(short = 'k', long = "kill")]
-        kill: bool,
-        /// Restart the running service
-        #[arg(short = 'r', long = "restart")]
-        restart: bool,
-    },
+    /// Manage the hyde-ipc user service.
+    Setup(SetupCommand),
 
-    /// Set up the systemd user service for hyde-ipc.
-    Setup,
+    /// Load a config file for global reactions.
+    Global {
+        /// Path to the config file to load.
+        #[arg(short = 'c', long)]
+        config_path: String,
+    },
 
     /// Generate shell completion scripts
     GenerateCompletion {
@@ -153,6 +145,42 @@ pub enum Commands {
 
     /// Query Hyprland for information.
     Query(QueryCommand),
+}
+
+#[derive(Parser, Debug, Clone)]
+#[command(group(
+    ArgGroup::new("action")
+        .required(true)
+        .args(["install", "uninstall", "start", "kill", "restart", "check", "watch"]),
+))]
+pub struct SetupCommand {
+    /// Install the user service.
+    #[arg(long)]
+    pub install: bool,
+
+    /// Uninstall the user service.
+    #[arg(long)]
+    pub uninstall: bool,
+
+    /// Start the user service.
+    #[arg(short = 's', long)]
+    pub start: bool,
+
+    /// Stop (kill) the user service.
+    #[arg(short = 'k', long)]
+    pub kill: bool,
+
+    /// Restart the user service.
+    #[arg(long)]
+    pub restart: bool,
+
+    /// Check the status of the user service.
+    #[arg(short = 'c', long)]
+    pub check: bool,
+
+    /// Watch the logs of the user service.
+    #[arg(short = 'w', long)]
+    pub watch: bool,
 }
 
 #[derive(Parser, Debug, Clone)]
