@@ -13,7 +13,7 @@ mod setup;
 
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
-use flags::{Cli, Commands, DispatchCommand, QueryCommand};
+use flags::{Cli, Commands, DispatchCommand};
 use std::path::PathBuf;
 use std::{env, fs, io, process};
 

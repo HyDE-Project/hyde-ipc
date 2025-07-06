@@ -16,7 +16,7 @@ pub struct Cli {
 }
 
 /// All supported subcommands for hyde-ipc.
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
     /// Get or set a keyword value.
     #[command(group(
@@ -81,10 +81,6 @@ pub enum Commands {
             .args(["config", "inline"]),
     ))]
     React {
-        /// Deprecated: Async mode is no longer supported (will be ignored)
-        #[arg(short = 'a', long = "async")]
-        r#async: bool,
-
         /// Use a config file to define multiple reactions
         #[arg(
             short = 'c',
@@ -118,16 +114,8 @@ pub enum Commands {
         filter: Option<String>,
 
         /// Dispatcher command to execute when the event occurs
-        #[arg(
-            short = 'd',
-            long = "dispatch",
-            required_unless_present = "config"
-        )]
-        dispatcher: Option<String>,
-
-        /// Arguments for the dispatcher
-        #[arg(short = 'p', long = "params")]
-        args: Vec<String>,
+        #[command(subcommand)]
+        dispatch: Option<Dispatch>,
 
         /// Limit number of reactions (0 for unlimited)
         #[arg(
@@ -162,9 +150,28 @@ pub enum Commands {
         #[arg(value_enum)]
         shell: Shell,
     },
+
+    /// Query Hyprland for information.
+    Query(QueryCommand),
 }
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
+pub struct QueryCommand {
+    #[command(subcommand)]
+    pub command: Query,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum Query {
+    /// Get the current cursor position.
+    CursorPos {
+        /// Watch for changes and log the position continuously.
+        #[arg(short = 'w', long = "watch")]
+        watch: bool,
+    },
+}
+
+#[derive(Parser, Debug, Clone)]
 #[command(
     help_template = "{before-help}{about-with-newline}{usage-heading}{usage}{options-heading}{options}"
 )]
@@ -181,7 +188,7 @@ pub struct DispatchCommand {
     pub command: Option<Dispatch>,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Clone)]
 pub enum Dispatch {
     /// Execute a command
     Exec { command: Vec<String> },
@@ -195,6 +202,13 @@ pub enum Dispatch {
     ToggleOpaque,
     /// Move cursor to a corner
     MoveCursorToCorner { corner: String },
+    /// Move cursor to a specific position
+    MoveCursor {
+        #[arg()]
+        x: i64,
+        #[arg()]
+        y: i64,
+    },
     /// Toggle fullscreen mode
     ToggleFullscreen { mode: String },
     /// Move window to workspace. Accepts a workspace number (e.g., '5'),
