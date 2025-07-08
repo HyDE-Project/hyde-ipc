@@ -29,7 +29,11 @@ fn parse_workspace_identifier(
     workspace: &str,
 ) -> Result<WorkspaceIdentifierWithSpecial<'static>, String> {
     if let Ok(id) = workspace.parse::<i32>() {
-        Ok(WorkspaceIdentifierWithSpecial::Id(id))
+        if id == 0 {
+            Ok(WorkspaceIdentifierWithSpecial::Special(None))
+        } else {
+            Ok(WorkspaceIdentifierWithSpecial::Id(id))
+        }
     } else if let Some(num_str) = workspace.strip_prefix("right:") {
         let num = num_str
             .parse::<i32>()
