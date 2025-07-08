@@ -99,7 +99,7 @@ pub fn main() {
             } else if setup_command.watch {
                 service::watch_logs()
             } else {
-                // This should not be reached due to the ArgGroup
+                // WARN: this should not be reached due to the ArgGroup
                 Ok(())
             };
 
@@ -167,6 +167,13 @@ fn handle_dispatch(command: Dispatch, is_async: bool) {
         Dispatch::MoveCursor { x, y } => ("movecursor", vec![x.to_string(), y.to_string()]),
         Dispatch::ToggleFullscreen { mode } => ("togglefullscreen", vec![mode]),
         Dispatch::MoveToWorkspace { workspace } => ("movetoworkspace", vec![workspace]),
+        Dispatch::MoveToWorkspaceSilent { workspace, window } => {
+            let mut args = vec![workspace];
+            if let Some(class) = window.class {
+                args.push(class);
+            }
+            ("movetoworkspacesilent", args)
+        },
         Dispatch::Workspace { workspace } => ("workspace", vec![workspace]),
         Dispatch::CycleWindow { direction } => ("cyclewindow", vec![direction]),
         Dispatch::MoveFocus { direction } => ("movefocus", vec![direction]),

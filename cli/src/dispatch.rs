@@ -157,6 +157,21 @@ static DISPATCHERS: LazyLock<HashMap<&'static str, DispatcherBuilder>> = LazyLoc
         let workspace_id = parse_workspace_identifier(workspace_str)?;
         Ok(DispatchType::MoveToWorkspace(workspace_id, None))
     });
+    m.insert("movetoworkspacesilent", |args| {
+        let workspace_str = args
+            .first()
+            .ok_or("Missing workspace argument")?;
+        let workspace_id = parse_workspace_identifier(workspace_str)?;
+        let window_id = if let Some(window_str) = args.get(1) {
+            Some(parse_window_identifier(WindowId {
+                class: Some(window_str.to_string()),
+                ..Default::default()
+            })?)
+        } else {
+            None
+        };
+        Ok(DispatchType::MoveToWorkspaceSilent(workspace_id, window_id))
+    });
     m.insert("workspace", |args| {
         let workspace_str = args
             .first()
