@@ -59,7 +59,8 @@ fn get_manager() -> Result<Box<dyn ServiceManager>> {
         <dyn ServiceManager>::native().map_err(|e| ServiceError::Manager(e.to_string()))?;
     manager
         .set_level(ServiceLevel::User)
-        .map_err(|e| ServiceError::UserLevel(e.to_string()))?;
+        .expect("Failed to install service");
+
     Ok(manager)
 }
 
@@ -67,25 +68,25 @@ fn get_label() -> ServiceLabel {
     ServiceLabel { qualifier: None, organization: None, application: String::from("hyde-ipc") }
 }
 
-
+// FIX: redesign ?
+//
 pub fn get_config_path() -> Result<PathBuf> {
-    let data_dir = dirs::data_dir()
-        .ok_or_else(|| ServiceError::Config("Could not get user's data directory".to_string()))?;
+    let data_dir = dirs::data_dir().expect("Could not get user's data directory");
     let mut path = data_dir;
     path.push("hyde-ipc");
     path.push("config.toml");
     Ok(path)
 }
 
-
 pub fn install() -> Result<()> {
     let label = get_label();
     let manager = get_manager()?;
 
+    // FIX: redesign needed for sure
     let which_output = Command::new("which")
         .arg("hyde-ipc")
         .output()
-        .expect("Failed to run 'which hyde-ipc'");
+        .expect("Failed to detect hyde-ipc binary.");
 
     if !which_output.status.success() {
         eprintln!("Could not find hyde-ipc binary in PATH");
@@ -116,10 +117,9 @@ pub fn install() -> Result<()> {
     start()
 }
 
-
 pub fn uninstall() -> Result<()> {
     if let Err(e) = stop() {
-        eprintln!("Failed to stop service during uninstall: {e}. Continuing with uninstall...");
+        println!("Failed to stop service during uninstall: {e}. Continuing with uninstall...");
     }
 
     let label = get_label();
@@ -132,7 +132,6 @@ pub fn uninstall() -> Result<()> {
     Ok(())
 }
 
-
 pub fn start() -> Result<()> {
     let label = get_label();
     let manager = get_manager()?;
@@ -143,7 +142,6 @@ pub fn start() -> Result<()> {
     println!("Service started successfully.");
     Ok(())
 }
-
 
 pub fn stop() -> Result<()> {
     let label = get_label();
@@ -156,7 +154,6 @@ pub fn stop() -> Result<()> {
     Ok(())
 }
 
-
 pub fn restart() -> Result<()> {
     println!("Restarting service...");
     if let Err(e) = stop() {
@@ -164,7 +161,6 @@ pub fn restart() -> Result<()> {
     }
     start()
 }
-
 
 pub fn is_active() -> Result<bool> {
     // FIX: before next release:
@@ -177,7 +173,6 @@ pub fn is_active() -> Result<bool> {
     Ok(status.status.success())
 }
 
-
 pub fn status() -> Result<()> {
     if is_active()? {
         println!("Service is running.");
@@ -186,7 +181,6 @@ pub fn status() -> Result<()> {
     }
     Ok(())
 }
-
 
 pub fn watch_logs() -> Result<()> {
     let mut child = Command::new("journalctl")

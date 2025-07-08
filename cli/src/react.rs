@@ -1,6 +1,5 @@
 use crate::dispatch;
 use crate::flags::Dispatch as DispatchCmd;
-
 use hyprland::event_listener::EventListener;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
