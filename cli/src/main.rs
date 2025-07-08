@@ -144,7 +144,10 @@ pub fn main() {
             }
         },
         Commands::Query(query_command) => {
-            query::run_query(query_command.command);
+            if let Err(e) = query::run_query(query_command.command) {
+                eprintln!("Error: {e}");
+                process::exit(1);
+            }
         },
     }
 }

@@ -1,36 +1,35 @@
-use crate::flags::Query;
-use hyprland::data::CursorPosition;
-use hyprland::prelude::*;
-use std::io::{Write, stdout};
-use std::thread;
-use std::time::Duration;
+use std::error::Error;
 
-pub fn run_query(command: Query) {
+use crate::flags::Query;
+// use hyprland::data::CursorPosition;
+// use hyprland::prelude::*;
+
+use hyprland::dispatch;
+use hyprland::dispatch::DispatchType::*;
+use hyprland::dispatch::{
+    Corner, Dispatch, DispatchType, FullscreenType, WorkspaceIdentifierWithSpecial,
+};
+
+pub fn run_query(command: Query) -> hyprland::Result<()> {
     match command {
         Query::CursorPos { watch } => {
             if watch {
-                loop {
-                    match CursorPosition::get() {
-                        Ok(pos) => {
-                            print!("\r\x1b[Kx: {}, y: {}", pos.x, pos.y);
-                            stdout().flush().unwrap();
-                        },
-                        Err(e) => {
-                            eprintln!("Error: {e}");
-                            break;
-                        },
-                    }
-                    thread::sleep(Duration::from_millis(150));
-                }
+                println!("who cares");
+                Ok(())
             } else {
-                match CursorPosition::get() {
-                    Ok(pos) => {
-                        println!("x: {}, y: {}", pos.x, pos.y);
-                    },
-                    Err(e) => {
-                        eprintln!("Error: {e}");
-                    },
-                }
+                dispatch!(ToggleFullscreen, FullscreenType::Maximize)?;
+                Ok(())
+
+                // .expect("failed foe some reason")
+
+                // match CursorPosition::get() {
+                //     Ok(pos) => {
+                //         println!("x: {}, y: {}", pos.x, pos.y);
+                //     },
+                //     Err(e) => {
+                //         eprintln!("Error: {e}");
+                //     },
+                // }
             }
         },
     }
