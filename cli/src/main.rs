@@ -152,49 +152,49 @@ pub fn main() {
 fn handle_dispatch(command: Dispatch, is_async: bool) {
     let (dispatcher, args) = match command {
         Dispatch::Exec { command } => ("exec", command),
-        Dispatch::KillActiveWindow => ("killactivewindow", vec![]),
+        Dispatch::KillActiveWindow => ("kill-active-window", vec![]),
         Dispatch::ToggleFloating { window } => (
-            "togglefloating",
+            "toggle-floating",
             window
                 .class
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
         ),
-        Dispatch::ToggleSplit => ("togglesplit", vec![]),
-        Dispatch::ToggleOpaque => ("toggleopaque", vec![]),
-        Dispatch::MoveCursorToCorner { corner } => ("movecursortocorner", vec![corner]),
-        Dispatch::MoveCursor { x, y } => ("movecursor", vec![x.to_string(), y.to_string()]),
-        Dispatch::ToggleFullscreen { mode } => ("togglefullscreen", vec![mode]),
-        Dispatch::MoveToWorkspace { workspace } => ("movetoworkspace", vec![workspace]),
+        Dispatch::ToggleSplit => ("toggle-split", vec![]),
+        Dispatch::ToggleOpaque => ("toggle-opaque", vec![]),
+        Dispatch::MoveCursorToCorner { corner } => ("move-cursor-to-corner", vec![corner]),
+        Dispatch::MoveCursor { x, y } => ("move-cursor", vec![x.to_string(), y.to_string()]),
+        Dispatch::ToggleFullscreen { mode } => ("toggle-fullscreen", vec![mode]),
+        Dispatch::MoveToWorkspace { workspace } => ("move-to-workspace", vec![workspace]),
         Dispatch::MoveToWorkspaceSilent { workspace, window } => {
             let mut args = vec![workspace];
             if let Some(class) = window.class {
                 args.push(class);
             }
-            ("movetoworkspacesilent", args)
+            ("move-to-workspace-silent", args)
         },
         Dispatch::Workspace { workspace } => ("workspace", vec![workspace]),
-        Dispatch::CycleWindow { direction } => ("cyclewindow", vec![direction]),
-        Dispatch::MoveFocus { direction } => ("movefocus", vec![direction]),
-        Dispatch::SwapWindow { direction } => ("swapwindow", vec![direction]),
+        Dispatch::CycleWindow { direction } => ("cycle-window", vec![direction]),
+        Dispatch::MoveFocus { direction } => ("move-focus", vec![direction]),
+        Dispatch::SwapWindow { direction } => ("swap-window", vec![direction]),
         Dispatch::FocusWindow { window } => (
-            "focuswindow",
+            "focus-window",
             window
                 .class
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
         ),
-        Dispatch::MoveWindow { target } => ("movewindow", vec![target]),
-        Dispatch::ToggleFakeFullscreen => ("togglefakefullscreen", vec![]),
-        Dispatch::TogglePseudo => ("togglepseudo", vec![]),
-        Dispatch::TogglePin => ("togglepin", vec![]),
-        Dispatch::CenterWindow => ("centerwindow", vec![]),
-        Dispatch::BringActiveToTop => ("bringactivetotop", vec![]),
-        Dispatch::FocusUrgentOrLast => ("focusurgentorlast", vec![]),
-        Dispatch::FocusCurrentOrLast => ("focuscurrentorlast", vec![]),
-        Dispatch::ForceRendererReload => ("forcerendererreload", vec![]),
+        Dispatch::MoveWindow { target } => ("move-window", vec![target]),
+        Dispatch::ToggleFakeFullscreen => ("toggle-fake-fullscreen", vec![]),
+        Dispatch::TogglePseudo => ("toggle-pseudo", vec![]),
+        Dispatch::TogglePin => ("toggle-pin", vec![]),
+        Dispatch::CenterWindow => ("center-window", vec![]),
+        Dispatch::BringActiveToTop => ("bring-active-to-top", vec![]),
+        Dispatch::FocusUrgentOrLast => ("focus-urgent-or-last", vec![]),
+        Dispatch::FocusCurrentOrLast => ("focus-current-or-last", vec![]),
+        Dispatch::ForceRendererReload => ("force-renderer-reload", vec![]),
         Dispatch::Exit => ("exit", vec![]),
         Dispatch::ResizeActive { params } => {
             let args = match params {
@@ -205,7 +205,7 @@ fn handle_dispatch(command: Dispatch, is_async: bool) {
                     height.to_string(),
                 ],
             };
-            ("resizeactive", args)
+            ("resize-active", args)
         },
         Dispatch::ResizeWindowPixel { params, window } => {
             let mut args = match params {
@@ -219,7 +219,7 @@ fn handle_dispatch(command: Dispatch, is_async: bool) {
             if let Some(class) = window.class {
                 args.push(class);
             }
-            ("resizewindowpixel", args)
+            ("resize-window-pixel", args)
         },
         _ => {
             eprintln!("Dispatcher not fully implemented in main.rs handler yet.");
