@@ -12,6 +12,7 @@ use std::str::FromStr;
 pub struct ParsedWindowIdentifier(pub WindowIdentifier<'static>);
 impl FromStr for ParsedWindowIdentifier {
     type Err = String;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some(class) = s.strip_prefix("class:") {
             let class_static = Box::leak(class.to_string().into_boxed_str());
@@ -20,7 +21,9 @@ impl FromStr for ParsedWindowIdentifier {
             let title_static = Box::leak(title.to_string().into_boxed_str());
             Ok(Self(WindowIdentifier::Title(title_static)))
         } else if let Some(pid_str) = s.strip_prefix("pid:") {
-            let pid = pid_str.parse::<u32>().map_err(|_| "Invalid PID")?;
+            let pid = pid_str
+                .parse::<u32>()
+                .map_err(|_| "Invalid PID")?;
             Ok(Self(WindowIdentifier::ProcessId(pid)))
         } else if let Some(addr) = s.strip_prefix("address:") {
             Ok(Self(WindowIdentifier::Address(Address::new(addr))))
@@ -36,6 +39,7 @@ impl FromStr for ParsedWindowIdentifier {
 pub struct ParsedWorkspaceIdentifier(pub WorkspaceIdentifierWithSpecial<'static>);
 impl FromStr for ParsedWorkspaceIdentifier {
     type Err = String;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(id) = s.parse::<i32>() {
             if id == 0 {
@@ -77,6 +81,7 @@ static DIRECTIONS: phf::Map<&'static str, Direction> = phf_map! {
 pub struct ParsedDirection(pub Direction);
 impl FromStr for ParsedDirection {
     type Err = String;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         DIRECTIONS
             .get(s.to_lowercase().as_str())
@@ -90,12 +95,15 @@ impl FromStr for ParsedDirection {
 pub struct ParsedWindowMove(pub WindowMove<'static>);
 impl FromStr for ParsedWindowMove {
     type Err = String;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some(monitor_name) = s.strip_prefix("mon:") {
-            let monitor_name_static = Box::leak(monitor_name.to_string().into_boxed_str());
-            Ok(Self(WindowMove::Monitor(MonitorIdentifier::Name(
-                monitor_name_static,
-            ))))
+            let monitor_name_static = Box::leak(
+                monitor_name
+                    .to_string()
+                    .into_boxed_str(),
+            );
+            Ok(Self(WindowMove::Monitor(MonitorIdentifier::Name(monitor_name_static))))
         } else if let Ok(monitor_id) = s.parse::<i128>() {
             Ok(Self(WindowMove::Monitor(MonitorIdentifier::Id(monitor_id))))
         } else if s.to_lowercase() == "current" {
@@ -122,6 +130,7 @@ static CORNERS: phf::Map<&'static str, Corner> = phf_map! {
 pub struct ParsedCorner(pub Corner);
 impl FromStr for ParsedCorner {
     type Err = String;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         CORNERS
             .get(s.to_lowercase().as_str())
@@ -141,6 +150,7 @@ static FULLSCREEN_TYPES: phf::Map<&'static str, FullscreenType> = phf_map! {
 pub struct ParsedFullscreenType(pub FullscreenType);
 impl FromStr for ParsedFullscreenType {
     type Err = String;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         FULLSCREEN_TYPES
             .get(s.to_lowercase().as_str())
@@ -159,6 +169,7 @@ static CYCLE_DIRECTIONS: phf::Map<&'static str, CycleDirection> = phf_map! {
 pub struct ParsedCycleDirection(pub CycleDirection);
 impl FromStr for ParsedCycleDirection {
     type Err = String;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         CYCLE_DIRECTIONS
             .get(s.to_lowercase().as_str())

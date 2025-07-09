@@ -1,12 +1,9 @@
-
 use crate::flags::Query;
 // use hyprland::data::CursorPosition;
 // use hyprland::prelude::*;
 
 use hyprland::dispatch;
-use hyprland::dispatch::{
-    Dispatch, DispatchType, FullscreenType,
-};
+use hyprland::dispatch::{Dispatch, DispatchType, FullscreenType};
 
 pub fn run_query(command: Query) -> hyprland::Result<()> {
     match command {

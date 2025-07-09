@@ -4,6 +4,7 @@
 //! options.
 
 use clap::{ArgGroup, Parser, Subcommand};
+use serde::Deserialize;
 
 /// Command-line interface for hyde-ipc.
 #[derive(Parser, Debug)]
@@ -204,7 +205,7 @@ pub struct DispatchCommand {
     pub command: Option<Dispatch>,
 }
 
-#[derive(clap::Args, Debug, Clone, Default)]
+#[derive(clap::Args, Debug, Clone, Default, Deserialize)]
 pub struct WindowId {
     #[arg(long, group = "winid")]
     pub class: Option<String>,
@@ -217,6 +218,7 @@ pub struct WindowId {
 }
 
 impl WindowId {
+    #[allow(dead_code)]
     pub fn to_identifier_string(&self) -> Option<String> {
         if let Some(class) = &self.class {
             Some(format!("class:{class}"))
@@ -224,11 +226,7 @@ impl WindowId {
             Some(format!("title:{title}"))
         } else if let Some(pid) = self.pid {
             Some(format!("pid:{pid}"))
-        } else if let Some(address) = &self.address {
-            Some(format!("address:{address}"))
-        } else {
-            None
-        }
+        } else { self.address.as_ref().map(|address| format!("address:{address}")) }
     }
 }
 

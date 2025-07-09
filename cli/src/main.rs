@@ -6,10 +6,11 @@ mod dispatch;
 mod flags;
 mod keyword;
 mod listen;
+mod parsers;
 mod query;
 mod react;
 mod react_config;
-mod parsers;
+mod reaction_handler;
 
 use clap::{CommandFactory, Parser};
 use flags::{Cli, Commands, DispatchCommand};
@@ -152,8 +153,6 @@ pub fn main() {
         },
     }
 }
-
-
 
 fn print_usage_and_exit() {
     Cli::command().print_help().unwrap();
