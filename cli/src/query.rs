@@ -1,13 +1,11 @@
-use std::error::Error;
 
 use crate::flags::Query;
 // use hyprland::data::CursorPosition;
 // use hyprland::prelude::*;
 
 use hyprland::dispatch;
-use hyprland::dispatch::DispatchType::*;
 use hyprland::dispatch::{
-    Corner, Dispatch, DispatchType, FullscreenType, WorkspaceIdentifierWithSpecial,
+    Dispatch, DispatchType, FullscreenType,
 };
 
 pub fn run_query(command: Query) -> hyprland::Result<()> {

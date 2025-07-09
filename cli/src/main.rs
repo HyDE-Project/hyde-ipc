@@ -224,13 +224,10 @@ fn handle_dispatch(command: Dispatch, is_async: bool) {
             }
             ("resize-window-pixel", args)
         },
-        _ => {
-            eprintln!("Dispatcher not fully implemented in main.rs handler yet.");
-            return;
-        },
     };
 
     if is_async {
+        // FIX: convert to enums
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -247,6 +244,7 @@ fn print_usage_and_exit() {
 }
 
 fn print_dispatchers_list() {
+    // FIX: macro it into the dispatcher, or juse use clap stuff!
     let list = r#"Available dispatchers:
   Basic commands:
   exec <command>                                    - Execute a command

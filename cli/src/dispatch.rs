@@ -1,4 +1,4 @@
-use crate::flags::{ResizeCmd, WindowId};
+use crate::flags::ResizeCmd;
 use hyprland::dispatch::{
     Corner, CycleDirection, Direction, Dispatch, DispatchType, FullscreenType, MonitorIdentifier,
     Position, WindowIdentifier, WindowMove, WorkspaceIdentifierWithSpecial,
@@ -8,22 +8,6 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 type DispatcherBuilder = fn(Vec<String>) -> Result<DispatchType<'static>, String>;
-
-fn parse_window_identifier(identifier: WindowId) -> Result<WindowIdentifier<'static>, String> {
-    if let Some(class) = identifier.class {
-        let class_static = Box::leak(class.to_string().into_boxed_str());
-        Ok(WindowIdentifier::ClassRegularExpression(class_static))
-    } else if let Some(title) = identifier.title {
-        let title_static = Box::leak(title.to_string().into_boxed_str());
-        Ok(WindowIdentifier::Title(title_static))
-    } else if let Some(pid) = identifier.pid {
-        Ok(WindowIdentifier::ProcessId(pid))
-    } else if let Some(addr) = identifier.address {
-        Ok(WindowIdentifier::Address(Address::new(addr)))
-    } else {
-        Err("No window identifier provided".to_string())
-    }
-}
 
 fn parse_workspace_identifier(
     workspace: &str,
@@ -99,7 +83,9 @@ fn parse_window_identifier_str(identifier: &str) -> Result<WindowIdentifier<'sta
         let title_static = Box::leak(title.to_string().into_boxed_str());
         Ok(WindowIdentifier::Title(title_static))
     } else if let Some(pid_str) = identifier.strip_prefix("pid:") {
-        let pid = pid_str.parse::<u32>().map_err(|_| "Invalid PID")?;
+        let pid = pid_str
+            .parse::<u32>()
+            .map_err(|_| "Invalid PID")?;
         Ok(WindowIdentifier::ProcessId(pid))
     } else if let Some(addr) = identifier.strip_prefix("address:") {
         Ok(WindowIdentifier::Address(Address::new(addr)))
@@ -119,7 +105,10 @@ static DISPATCHERS: LazyLock<HashMap<&'static str, DispatcherBuilder>> = LazyLoc
     });
     m.insert("kill-active-window", |_args| Ok(DispatchType::KillActiveWindow));
     m.insert("toggle-floating", |args| {
-        let window_str = args.first().map(|s| s.as_str()).unwrap_or("");
+        let window_str = args
+            .first()
+            .map(|s| s.as_str())
+            .unwrap_or("");
         let window_id = if window_str.is_empty() {
             None
         } else {
@@ -130,7 +119,9 @@ static DISPATCHERS: LazyLock<HashMap<&'static str, DispatcherBuilder>> = LazyLoc
     m.insert("toggle-split", |_| Ok(DispatchType::ToggleSplit));
     m.insert("toggle-opaque", |_| Ok(DispatchType::ToggleOpaque));
     m.insert("move-cursor-to-corner", |args| {
-        let corner_str = args.first().ok_or("Missing corner argument")?;
+        let corner_str = args
+            .first()
+            .ok_or("Missing corner argument")?;
         let corner = match corner_str.to_lowercase().as_str() {
             "topleft" => Corner::TopLeft,
             "topright" => Corner::TopRight,
@@ -144,12 +135,19 @@ static DISPATCHERS: LazyLock<HashMap<&'static str, DispatcherBuilder>> = LazyLoc
         if args.len() != 2 {
             return Err("movecursor requires x and y arguments".to_string());
         }
-        let x = args[0].parse::<i64>().map_err(|_| "Invalid x value")?;
-        let y = args[1].parse::<i64>().map_err(|_| "Invalid y value")?;
+        let x = args[0]
+            .parse::<i64>()
+            .map_err(|_| "Invalid x value")?;
+        let y = args[1]
+            .parse::<i64>()
+            .map_err(|_| "Invalid y value")?;
         Ok(DispatchType::MoveCursor(x, y))
     });
     m.insert("toggle-fullscreen", |args| {
-        let mode_str = args.first().map(|s| s.as_str()).unwrap_or("noparam");
+        let mode_str = args
+            .first()
+            .map(|s| s.as_str())
+            .unwrap_or("noparam");
         let mode = match mode_str.to_lowercase().as_str() {
             "real" => FullscreenType::Real,
             "maximize" => FullscreenType::Maximize,
@@ -159,12 +157,16 @@ static DISPATCHERS: LazyLock<HashMap<&'static str, DispatcherBuilder>> = LazyLoc
         Ok(DispatchType::ToggleFullscreen(mode))
     });
     m.insert("move-to-workspace", |args| {
-        let workspace_str = args.first().ok_or("Missing workspace argument")?;
+        let workspace_str = args
+            .first()
+            .ok_or("Missing workspace argument")?;
         let workspace_id = parse_workspace_identifier(workspace_str)?;
         Ok(DispatchType::MoveToWorkspace(workspace_id, None))
     });
     m.insert("move-to-workspace-silent", |args| {
-        let workspace_str = args.first().ok_or("Missing workspace argument")?;
+        let workspace_str = args
+            .first()
+            .ok_or("Missing workspace argument")?;
         let workspace_id = parse_workspace_identifier(workspace_str)?;
         let window_id = if let Some(window_str) = args.get(1) {
             Some(parse_window_identifier_str(window_str)?)
@@ -174,12 +176,17 @@ static DISPATCHERS: LazyLock<HashMap<&'static str, DispatcherBuilder>> = LazyLoc
         Ok(DispatchType::MoveToWorkspaceSilent(workspace_id, window_id))
     });
     m.insert("workspace", |args| {
-        let workspace_str = args.first().ok_or("Missing workspace argument")?;
+        let workspace_str = args
+            .first()
+            .ok_or("Missing workspace argument")?;
         let workspace_id = parse_workspace_identifier(workspace_str)?;
         Ok(DispatchType::Workspace(workspace_id))
     });
     m.insert("cycle-window", |args| {
-        let dir_str = args.first().map(|s| s.as_str()).unwrap_or("next");
+        let dir_str = args
+            .first()
+            .map(|s| s.as_str())
+            .unwrap_or("next");
         let dir = match dir_str.to_lowercase().as_str() {
             "next" => CycleDirection::Next,
             "previous" => CycleDirection::Previous,
@@ -188,22 +195,30 @@ static DISPATCHERS: LazyLock<HashMap<&'static str, DispatcherBuilder>> = LazyLoc
         Ok(DispatchType::CycleWindow(dir))
     });
     m.insert("move-focus", |args| {
-        let dir_str = args.first().ok_or("Missing direction argument")?;
+        let dir_str = args
+            .first()
+            .ok_or("Missing direction argument")?;
         let dir = parse_direction(dir_str)?;
         Ok(DispatchType::MoveFocus(dir))
     });
     m.insert("swap-window", |args| {
-        let dir_str = args.first().ok_or("Missing direction argument")?;
+        let dir_str = args
+            .first()
+            .ok_or("Missing direction argument")?;
         let dir = parse_direction(dir_str)?;
         Ok(DispatchType::SwapWindow(dir))
     });
     m.insert("focus-window", |args| {
-        let window_str = args.first().ok_or("Missing window identifier")?;
+        let window_str = args
+            .first()
+            .ok_or("Missing window identifier")?;
         let window_id = parse_window_identifier_str(window_str)?;
         Ok(DispatchType::FocusWindow(window_id))
     });
     m.insert("move-window", |args| {
-        let target_str = args.first().ok_or("Missing target argument")?;
+        let target_str = args
+            .first()
+            .ok_or("Missing target argument")?;
         let window_move = parse_window_move(target_str)?;
         Ok(DispatchType::MoveWindow(window_move))
     });
@@ -222,13 +237,25 @@ static DISPATCHERS: LazyLock<HashMap<&'static str, DispatcherBuilder>> = LazyLoc
         }
         let params = if args[0] == "exact" {
             ResizeCmd::Exact {
-                width: args.get(1).and_then(|s| s.parse().ok()).unwrap_or(0),
-                height: args.get(2).and_then(|s| s.parse().ok()).unwrap_or(0),
+                width: args
+                    .get(1)
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(0),
+                height: args
+                    .get(2)
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(0),
             }
         } else {
             ResizeCmd::Delta {
-                dx: args.first().and_then(|s| s.parse().ok()).unwrap_or(0),
-                dy: args.get(1).and_then(|s| s.parse().ok()).unwrap_or(0),
+                dx: args
+                    .first()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(0),
+                dy: args
+                    .get(1)
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(0),
             }
         };
         let position = match params {
@@ -244,18 +271,32 @@ static DISPATCHERS: LazyLock<HashMap<&'static str, DispatcherBuilder>> = LazyLoc
         let (params, window_str) = if args[0] == "exact" {
             (
                 ResizeCmd::Exact {
-                    width: args.get(1).and_then(|s| s.parse().ok()).unwrap_or(0),
-                    height: args.get(2).and_then(|s| s.parse().ok()).unwrap_or(0),
+                    width: args
+                        .get(1)
+                        .and_then(|s| s.parse().ok())
+                        .unwrap_or(0),
+                    height: args
+                        .get(2)
+                        .and_then(|s| s.parse().ok())
+                        .unwrap_or(0),
                 },
-                args.get(3).ok_or("Missing window identifier")?,
+                args.get(3)
+                    .ok_or("Missing window identifier")?,
             )
         } else {
             (
                 ResizeCmd::Delta {
-                    dx: args.first().and_then(|s| s.parse().ok()).unwrap_or(0),
-                    dy: args.get(1).and_then(|s| s.parse().ok()).unwrap_or(0),
+                    dx: args
+                        .first()
+                        .and_then(|s| s.parse().ok())
+                        .unwrap_or(0),
+                    dy: args
+                        .get(1)
+                        .and_then(|s| s.parse().ok())
+                        .unwrap_or(0),
                 },
-                args.get(2).ok_or("Missing window identifier")?,
+                args.get(2)
+                    .ok_or("Missing window identifier")?,
             )
         };
         let position = match params {
