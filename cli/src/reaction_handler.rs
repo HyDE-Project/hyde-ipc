@@ -10,7 +10,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-// --- Event Type Enums ---
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum WindowEventType {
@@ -226,6 +225,7 @@ pub struct Reaction {
     #[serde(default)]
     pub max_count: Option<usize>,
     pub name: Option<String>,
+    #[allow(dead_code)]
     pub description: Option<String>,
     #[serde(skip)]
     pub counter: Arc<AtomicUsize>,
@@ -268,7 +268,6 @@ impl Reaction {
     }
 }
 
-// --- Deserialization Logic ---
 pub fn deserialize_window_identifier<'de, D>(
     deserializer: D,
 ) -> Result<Option<WindowIdentifier<'static>>, D::Error>
@@ -284,7 +283,6 @@ where
     .transpose()
 }
 
-// --- Reaction Manager ---
 #[derive(Default, Debug)]
 pub struct ReactionManager {
     reactions: Vec<Arc<Reaction>>,
@@ -376,12 +374,8 @@ impl ReactionManager {
                         .window_filter
                         .is_some()
                     {
-                        // No window data, but filter exists, so no match
-                    } else {
-                        // No window data and no filter, so execute
-                        if let Err(e) = active_handler_reaction.execute() {
-                            eprintln!("Error executing reaction: {e}");
-                        }
+                    } else if let Err(e) = active_handler_reaction.execute() {
+                        eprintln!("Error executing reaction: {e}");
                     }
                 });
             },
@@ -461,8 +455,8 @@ fn is_window_match(
     match filter {
         Some(WindowIdentifier::ClassRegularExpression(pattern)) => window_class.contains(pattern),
         Some(WindowIdentifier::Title(pattern)) => window_title.contains(pattern),
-        Some(_) => false, // PID/Address matching not supported by events
-        None => true,     // No filter means it's always a match
+        Some(_) => false,
+        None => true,
     }
 }
 

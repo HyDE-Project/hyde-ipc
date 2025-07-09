@@ -19,8 +19,8 @@ pub fn sync_react(
     }
     println!("Press Ctrl+C to stop");
 
-    let event_type = EventType::from_event_and_subtype(&event, subtype.as_deref())
-        .map_err(HyprError::Other)?;
+    let event_type =
+        EventType::from_event_and_subtype(&event, subtype.as_deref()).map_err(HyprError::Other)?;
 
     let window_filter = filter
         .as_deref()

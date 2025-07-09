@@ -6,8 +6,6 @@ use hyprland::shared::Address;
 use phf::phf_map;
 use std::str::FromStr;
 
-// Parsed Types for Clap
-
 #[derive(Debug, Clone)]
 pub struct ParsedWindowIdentifier(pub WindowIdentifier<'static>);
 impl FromStr for ParsedWindowIdentifier {
@@ -28,7 +26,6 @@ impl FromStr for ParsedWindowIdentifier {
         } else if let Some(addr) = s.strip_prefix("address:") {
             Ok(Self(WindowIdentifier::Address(Address::new(addr))))
         } else {
-            // Fallback for raw class name for backward compatibility
             let class_static = Box::leak(s.to_string().into_boxed_str());
             Ok(Self(WindowIdentifier::ClassRegularExpression(class_static)))
         }

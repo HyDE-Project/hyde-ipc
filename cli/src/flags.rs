@@ -226,7 +226,11 @@ impl WindowId {
             Some(format!("title:{title}"))
         } else if let Some(pid) = self.pid {
             Some(format!("pid:{pid}"))
-        } else { self.address.as_ref().map(|address| format!("address:{address}")) }
+        } else {
+            self.address
+                .as_ref()
+                .map(|address| format!("address:{address}"))
+        }
     }
 }
 

@@ -5,8 +5,6 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 
-// --- Config File Handling ---
-
 #[derive(Debug, Deserialize)]
 pub struct ReactConfig {
     #[serde(rename = "reactions")]
