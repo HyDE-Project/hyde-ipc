@@ -6,12 +6,14 @@ mod dispatch;
 mod flags;
 mod keyword;
 mod listen;
+mod parsers;
 mod query;
 mod react;
 mod react_config;
+mod reaction_handler;
 
 use clap::{CommandFactory, Parser};
-use flags::{Cli, Commands, Dispatch, DispatchCommand, ResizeCmd};
+use flags::{Cli, Commands, DispatchCommand};
 use hyde_ipc_lib::service;
 use std::{fs, process};
 
@@ -44,7 +46,7 @@ pub fn main() {
             }
 
             if let Some(command) = dispatch_command.command {
-                handle_dispatch(command, dispatch_command.r#async);
+                dispatch::handle_dispatch(command, dispatch_command.r#async);
             } else {
                 DispatchCommand::command()
                     .print_help()
@@ -149,92 +151,6 @@ pub fn main() {
                 process::exit(1);
             }
         },
-    }
-}
-
-fn handle_dispatch(command: Dispatch, is_async: bool) {
-    let (dispatcher, args) = match command {
-        Dispatch::Exec { command } => ("exec", command),
-        Dispatch::KillActiveWindow => ("kill-active-window", vec![]),
-        Dispatch::ToggleFloating { window } => (
-            "toggle-floating",
-            window
-                .class
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
-        ),
-        Dispatch::ToggleSplit => ("toggle-split", vec![]),
-        Dispatch::ToggleOpaque => ("toggle-opaque", vec![]),
-        Dispatch::MoveCursorToCorner { corner } => ("move-cursor-to-corner", vec![corner]),
-        Dispatch::MoveCursor { x, y } => ("move-cursor", vec![x.to_string(), y.to_string()]),
-        Dispatch::ToggleFullscreen { mode } => ("toggle-fullscreen", vec![mode]),
-        Dispatch::MoveToWorkspace { workspace } => ("move-to-workspace", vec![workspace]),
-        Dispatch::MoveToWorkspaceSilent { workspace, window } => {
-            let mut args = vec![workspace];
-            if let Some(class) = window.class {
-                args.push(class);
-            }
-            ("move-to-workspace-silent", args)
-        },
-        Dispatch::Workspace { workspace } => ("workspace", vec![workspace]),
-        Dispatch::CycleWindow { direction } => ("cycle-window", vec![direction]),
-        Dispatch::MoveFocus { direction } => ("move-focus", vec![direction]),
-        Dispatch::SwapWindow { direction } => ("swap-window", vec![direction]),
-        Dispatch::FocusWindow { window } => (
-            "focus-window",
-            window
-                .class
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
-        ),
-        Dispatch::MoveWindow { target } => ("move-window", vec![target]),
-        Dispatch::ToggleFakeFullscreen => ("toggle-fake-fullscreen", vec![]),
-        Dispatch::TogglePseudo => ("toggle-pseudo", vec![]),
-        Dispatch::TogglePin => ("toggle-pin", vec![]),
-        Dispatch::CenterWindow => ("center-window", vec![]),
-        Dispatch::BringActiveToTop => ("bring-active-to-top", vec![]),
-        Dispatch::FocusUrgentOrLast => ("focus-urgent-or-last", vec![]),
-        Dispatch::FocusCurrentOrLast => ("focus-current-or-last", vec![]),
-        Dispatch::ForceRendererReload => ("force-renderer-reload", vec![]),
-        Dispatch::Exit => ("exit", vec![]),
-        Dispatch::ResizeActive { params } => {
-            let args = match params {
-                ResizeCmd::Delta { dx, dy } => vec![dx.to_string(), dy.to_string()],
-                ResizeCmd::Exact { width, height } => vec![
-                    "exact".to_string(),
-                    width.to_string(),
-                    height.to_string(),
-                ],
-            };
-            ("resize-active", args)
-        },
-        Dispatch::ResizeWindowPixel { params, window } => {
-            let mut args = match params {
-                ResizeCmd::Delta { dx, dy } => vec![dx.to_string(), dy.to_string()],
-                ResizeCmd::Exact { width, height } => vec![
-                    "exact".to_string(),
-                    width.to_string(),
-                    height.to_string(),
-                ],
-            };
-            if let Some(class) = window.class {
-                args.push(class);
-            }
-            ("resize-window-pixel", args)
-        },
-    };
-
-    if is_async {
-        // FIX: convert to enums
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        rt.block_on(dispatch::async_dispatch(dispatcher, &args));
-    } else {
-        dispatch::sync_dispatch(dispatcher, &args);
     }
 }
 
