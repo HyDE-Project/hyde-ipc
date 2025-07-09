@@ -1,9 +1,9 @@
 [[reactions]]
 event_type = { Window = "Opened" }
-window_filter = "class:Alacritty"
+window_filter = "class:kitty"
 dispatchers = [
-  { name = "FocusWindow", args = ["class:Alacritty"] },
-  { name = "ToggleFloating" },
-  { name = "ResizeActive", args = ["exact", "800", "600"] },
-  { name = "CenterWindow" }
+  { name = "focus-window", args = ["class:kitty"] },
+  { name = "toggle-floating" },
+  { name = "resize-active", args = ["exact", "800", "600"] },
+  { name = "center-window" },
 ]
