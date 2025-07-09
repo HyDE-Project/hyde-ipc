@@ -216,6 +216,22 @@ pub struct WindowId {
     pub address: Option<String>,
 }
 
+impl WindowId {
+    pub fn to_identifier_string(&self) -> Option<String> {
+        if let Some(class) = &self.class {
+            Some(format!("class:{class}"))
+        } else if let Some(title) = &self.title {
+            Some(format!("title:{title}"))
+        } else if let Some(pid) = self.pid {
+            Some(format!("pid:{pid}"))
+        } else if let Some(address) = &self.address {
+            Some(format!("address:{address}"))
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Subcommand, Debug, Clone)]
 pub enum ResizeCmd {
     Delta { dx: i16, dy: i16 },

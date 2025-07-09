@@ -1,8 +1,11 @@
 use crate::dispatch;
 use crate::flags::Dispatch as DispatchCmd;
+use crate::parsers::ParsedWindowIdentifier;
+use hyprland::dispatch::WindowIdentifier;
 use hyprland::event_listener::EventListener;
-use std::sync::Arc;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 pub fn sync_react(
     event: String,
@@ -20,11 +23,18 @@ pub fn sync_react(
     let mut event_listener = EventListener::new();
     let count = Arc::new(AtomicUsize::new(0));
 
+    let parsed_filter = filter
+        .as_deref()
+        .map(ParsedWindowIdentifier::from_str)
+        .transpose()
+        .map_err(|e| hyprland::shared::HyprError::Other(e))?
+        .map(|p| p.0);
+
     setup_event_handlers(
         &mut event_listener,
         &event,
         &subtype,
-        &filter,
+        parsed_filter,
         dispatch,
         count,
         max_reactions,
@@ -38,7 +48,7 @@ fn setup_event_handlers(
     event_listener: &mut EventListener,
     event: &str,
     subtype: &Option<String>,
-    filter: &Option<String>,
+    filter: Option<WindowIdentifier<'static>>,
     dispatch: DispatchCmd,
     count: Arc<AtomicUsize>,
     max_reactions: usize,
@@ -52,83 +62,50 @@ fn setup_event_handlers(
                         let count_clone = Arc::clone(&count);
                         let filter_clone = filter.clone();
                         event_listener.add_window_opened_handler(move |data| {
-                            if let Some(window_filter) = &filter_clone {
-                                if let Some(title_pattern) = window_filter.strip_prefix("title:") {
-                                    if !data
-                                        .window_title
-                                        .contains(title_pattern)
-                                    {
-                                        return;
-                                    }
-                                } else if let Some(class_pattern) =
-                                    window_filter.strip_prefix("class:")
-                                {
-                                    if !data
-                                        .window_class
-                                        .contains(class_pattern)
-                                    {
-                                        return;
-                                    }
-                                }
+                            if !is_window_match(&filter_clone, &data.window_class, &data.window_title) {
+                                return;
                             }
                             handle_event(dispatch_clone.clone(), &count_clone, max_reactions);
                         });
-                    },
+                    }
                     "closed" => {
                         let dispatch_clone = dispatch.clone();
                         let count_clone = Arc::clone(&count);
                         event_listener.add_window_closed_handler(move |_| {
                             handle_event(dispatch_clone.clone(), &count_clone, max_reactions);
                         });
-                    },
+                    }
                     "moved" => {
                         let dispatch_clone = dispatch.clone();
                         let count_clone = Arc::clone(&count);
                         event_listener.add_window_moved_handler(move |_| {
                             handle_event(dispatch_clone.clone(), &count_clone, max_reactions);
                         });
-                    },
+                    }
                     "active" => {
                         let dispatch_clone = dispatch.clone();
                         let count_clone = Arc::clone(&count);
                         let filter_clone = filter.clone();
                         event_listener.add_active_window_changed_handler(move |data| {
                             if let Some(window_data) = data.as_ref() {
-                                if let Some(window_filter) = &filter_clone {
-                                    if let Some(title_pattern) =
-                                        window_filter.strip_prefix("title:")
-                                    {
-                                        if !window_data
-                                            .title
-                                            .contains(title_pattern)
-                                        {
-                                            return;
-                                        }
-                                    } else if let Some(class_pattern) =
-                                        window_filter.strip_prefix("class:")
-                                    {
-                                        if !window_data
-                                            .class
-                                            .contains(class_pattern)
-                                        {
-                                            return;
-                                        }
-                                    }
+                                if !is_window_match(&filter_clone, &window_data.class, &window_data.title)
+                                {
+                                    return;
                                 }
                             } else if filter_clone.is_some() {
                                 return;
                             }
                             handle_event(dispatch_clone.clone(), &count_clone, max_reactions);
                         });
-                    },
+                    }
                     _ => {
                         return Err(hyprland::shared::HyprError::Other(format!(
                             "Unknown window subtype: {subtype}"
                         )));
-                    },
+                    }
                 }
             }
-        },
+        }
         "workspace" => {
             if let Some(subtype) = subtype {
                 match subtype.to_lowercase().as_str() {
@@ -138,86 +115,64 @@ fn setup_event_handlers(
                         event_listener.add_workspace_changed_handler(move |_| {
                             handle_event(dispatch_clone.clone(), &count_clone, max_reactions);
                         });
-                    },
+                    }
                     "added" => {
                         let dispatch_clone = dispatch.clone();
                         let count_clone = Arc::clone(&count);
                         event_listener.add_workspace_added_handler(move |_| {
                             handle_event(dispatch_clone.clone(), &count_clone, max_reactions);
                         });
-                    },
+                    }
                     "deleted" => {
                         let dispatch_clone = dispatch.clone();
                         let count_clone = Arc::clone(&count);
                         event_listener.add_workspace_deleted_handler(move |_| {
                             handle_event(dispatch_clone.clone(), &count_clone, max_reactions);
                         });
-                    },
+                    }
                     _ => {
                         return Err(hyprland::shared::HyprError::Other(format!(
                             "Unknown workspace subtype: {subtype}"
                         )));
-                    },
+                    }
                 }
             }
-        },
+        }
         _ => {
-            return Err(hyprland::shared::HyprError::Other(format!("Unknown event type: {event}")));
-        },
+            return Err(hyprland::shared::HyprError::Other(format!(
+                "Unknown event type: {event}"
+            )));
+        }
     }
     Ok(())
 }
 
-fn handle_event(dispatch_cmd: DispatchCmd, count: &Arc<AtomicUsize>, max_reactions: usize) {
-    let current = if max_reactions > 0 { count.fetch_add(1, Ordering::SeqCst) + 1 } else { 0 };
+fn is_window_match(
+    filter: &Option<WindowIdentifier>,
+    window_class: &str,
+    window_title: &str,
+) -> bool {
+    if let Some(filter) = filter {
+        match filter {
+            WindowIdentifier::ClassRegularExpression(pattern) => window_class.contains(pattern),
+            WindowIdentifier::Title(pattern) => window_title.contains(pattern),
+            // Note: PID and Address matching are not supported by event data
+            _ => false,
+        }
+    } else {
+        true
+    }
+}
 
-    let (dispatcher, args) = match dispatch_cmd {
-        DispatchCmd::Exec { command } => ("exec", command),
-        DispatchCmd::KillActiveWindow => ("killactivewindow", vec![]),
-        DispatchCmd::ToggleFloating { window } => (
-            "togglefloating",
-            window
-                .class
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
-        ),
-        DispatchCmd::ToggleSplit => ("togglesplit", vec![]),
-        DispatchCmd::ToggleOpaque => ("toggleopaque", vec![]),
-        DispatchCmd::MoveCursorToCorner { corner } => ("movecursortocorner", vec![corner]),
-        DispatchCmd::MoveCursor { x, y } => ("movecursor", vec![x.to_string(), y.to_string()]),
-        DispatchCmd::ToggleFullscreen { mode } => ("togglefullscreen", vec![mode]),
-        DispatchCmd::MoveToWorkspace { workspace } => ("movetoworkspace", vec![workspace]),
-        DispatchCmd::Workspace { workspace } => ("workspace", vec![workspace]),
-        DispatchCmd::CycleWindow { direction } => ("cyclewindow", vec![direction]),
-        DispatchCmd::MoveFocus { direction } => ("movefocus", vec![direction]),
-        DispatchCmd::SwapWindow { direction } => ("swapwindow", vec![direction]),
-        DispatchCmd::FocusWindow { window } => (
-            "focuswindow",
-            window
-                .class
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
-        ),
-        DispatchCmd::MoveWindow { target } => ("movewindow", vec![target]),
-        DispatchCmd::ToggleFakeFullscreen => ("togglefakefullscreen", vec![]),
-        DispatchCmd::TogglePseudo => ("togglepseudo", vec![]),
-        DispatchCmd::TogglePin => ("togglepin", vec![]),
-        DispatchCmd::CenterWindow => ("centerwindow", vec![]),
-        DispatchCmd::BringActiveToTop => ("bringactivetotop", vec![]),
-        DispatchCmd::FocusUrgentOrLast => ("focusurgentorlast", vec![]),
-        DispatchCmd::FocusCurrentOrLast => ("focuscurrentorlast", vec![]),
-        DispatchCmd::ForceRendererReload => ("forcerendererreload", vec![]),
-        DispatchCmd::Exit => ("exit", vec![]),
-        _ => {
-            eprintln!("Dispatcher not fully implemented in react.rs handler yet.");
-            return;
-        },
+fn handle_event(dispatch_cmd: DispatchCmd, count: &Arc<AtomicUsize>, max_reactions: usize) {
+    let current = if max_reactions > 0 {
+        count.fetch_add(1, Ordering::SeqCst) + 1
+    } else {
+        0
     };
 
-    println!("Event triggered! Executing: {dispatcher} with args: {args:?}");
-    dispatch::sync_dispatch(dispatcher, &args);
+    println!("Event triggered! Executing: {dispatch_cmd:?}");
+    dispatch::handle_dispatch(dispatch_cmd, false);
 
     if max_reactions > 0 && current >= max_reactions {
         println!("Reached maximum number of reactions ({max_reactions}). Exiting...");

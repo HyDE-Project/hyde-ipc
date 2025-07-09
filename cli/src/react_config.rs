@@ -1,21 +1,19 @@
-use hyprland::dispatch::Dispatch;
+use crate::parsers::ParsedWindowIdentifier;
+use hyprland::dispatch::{Dispatch, WindowIdentifier};
 use hyprland::event_listener::EventListener;
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer};
 use std::path::Path;
-use std::sync::Arc;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::{fmt, fs};
 
-/// Types of window events
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+// --- Event Type Enums ---
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 pub enum WindowEventType {
-    /// Window opened event
     Opened,
-    /// Window closed event
     Closed,
-    /// Window moved event
     Moved,
-    /// Active window changed event
     Active,
 }
 
@@ -30,14 +28,10 @@ impl fmt::Display for WindowEventType {
     }
 }
 
-/// Types of workspace events
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 pub enum WorkspaceEventType {
-    /// Workspace changed event
     Changed,
-    /// Workspace added event
     Added,
-    /// Workspace deleted event
     Deleted,
 }
 
@@ -51,14 +45,10 @@ impl fmt::Display for WorkspaceEventType {
     }
 }
 
-/// Types of group events
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 pub enum GroupEventType {
-    /// Group toggled event
     Toggled,
-    /// Window moved into group event
     MovedIn,
-    /// Window moved out of group event
     MovedOut,
 }
 
@@ -72,24 +62,15 @@ impl fmt::Display for GroupEventType {
     }
 }
 
-/// Types of events that can trigger reactions
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub enum EventType {
-    /// Window-related events
     Window(WindowEventType),
-    /// Workspace-related events
     Workspace(WorkspaceEventType),
-    /// Monitor-related events
     Monitor,
-    /// Float state change events
     Float,
-    /// Fullscreen state change events
     Fullscreen,
-    /// Layout change events
     Layout,
-    /// Group-related events
     Group(GroupEventType),
-    /// Config reload events
     Config,
 }
 
@@ -108,70 +89,74 @@ impl fmt::Display for EventType {
     }
 }
 
+// --- Main Configuration Structs ---
+
 /// A reaction to a Hyprland event, which can dispatch one or more commands when triggered.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Reaction {
-    /// The event type that triggers this reaction
     pub event_type: EventType,
-    /// The dispatcher to execute when the event occurs (legacy field)
     #[serde(default)]
     pub dispatcher: Option<String>,
-    /// Arguments for the dispatcher (legacy field)
     #[serde(default)]
     pub args: Vec<String>,
-    /// Sequence of dispatchers to execute
     #[serde(default)]
     pub dispatchers: Vec<Dispatcher>,
-    /// Window filter (e.g., "title:Google Chrome") for window events
-    #[serde(default)]
-    pub window_filter: Option<String>,
-    /// Maximum number of times this reaction should trigger (0 for unlimited)
+    #[serde(default, deserialize_with = "deserialize_window_identifier")]
+    pub window_filter: Option<WindowIdentifier<'static>>,
     #[serde(default)]
     pub max_count: Option<usize>,
-    /// Name of the reaction (optional)
     pub name: Option<String>,
-    /// Description of what the reaction does (optional)
     pub description: Option<String>,
+    #[serde(skip)]
+    counter: Arc<AtomicUsize>,
 }
 
 /// A dispatcher to be executed as part of a reaction chain.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Dispatcher {
-    /// The dispatcher name
     pub name: String,
-    /// Arguments for the dispatcher
     #[serde(default)]
     pub args: Vec<String>,
 }
 
+// --- Deserialization Logic ---
+
+fn deserialize_window_identifier<'de, D>(
+    deserializer: D,
+) -> Result<Option<WindowIdentifier<'static>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: Option<String> = Option::deserialize(deserializer)?;
+    s.map(|s| {
+        ParsedWindowIdentifier::from_str(&s)
+            .map(|p| p.0)
+            .map_err(de::Error::custom)
+    })
+    .transpose()
+}
+
+// --- Reaction Implementation ---
+
 impl Reaction {
     /// Execute this reaction and all chained dispatchers.
-    ///
-    /// # Arguments
-    /// * `count` - Shared counter for limiting reactions.
-    ///
-    /// # Returns
-    /// * `Ok(true)` if the reaction should continue.
-    /// * `Ok(false)` if the max count was reached.
-    /// * `Err(String)` if a dispatcher fails to parse.
-    pub fn execute(&self, count: &Arc<AtomicUsize>) -> Result<bool, String> {
+    pub fn execute(&self) -> Result<bool, String> {
         let max_count = self.max_count.unwrap_or(0);
-        let current = if max_count > 0 {
-            let current = count.fetch_add(1, Ordering::SeqCst) + 1;
+        if max_count > 0 {
+            let current = self.counter.fetch_add(1, Ordering::SeqCst) + 1;
             if current > max_count {
+                println!("Reached maximum reaction count ({max_count})");
                 return Ok(false);
             }
-            current
-        } else {
-            0
-        };
-
-        let mut all_dispatchers = Vec::new();
-
-        if let Some(dispatcher) = &self.dispatcher {
-            all_dispatchers.push(Dispatcher { name: dispatcher.clone(), args: self.args.clone() });
         }
 
+        let mut all_dispatchers = Vec::new();
+        if let Some(dispatcher) = &self.dispatcher {
+            all_dispatchers.push(Dispatcher {
+                name: dispatcher.clone(),
+                args: self.args.clone(),
+            });
+        }
         all_dispatchers.extend(self.dispatchers.clone());
 
         if all_dispatchers.is_empty() {
@@ -179,286 +164,197 @@ impl Reaction {
         }
 
         println!(
-            "Executing reaction for event {}: {} dispatchers",
+            "Executing reaction for event '{}': {} dispatchers",
             self.event_type,
             all_dispatchers.len()
         );
 
         for (index, dispatcher) in all_dispatchers.iter().enumerate() {
             println!(
-                "Executing dispatcher {}/{}: {} {:?}",
+                "  - Dispatcher {}/{}: {} {:?}",
                 index + 1,
                 all_dispatchers.len(),
                 dispatcher.name,
                 dispatcher.args
             );
-
             match super::dispatch::build_dispatch_cmd(&dispatcher.name, &dispatcher.args) {
                 Ok(dispatch_type) => {
                     if let Err(e) = Dispatch::call(dispatch_type) {
-                        eprintln!("Error executing dispatcher: {e}");
+                        eprintln!("    Error executing dispatcher: {e}");
                     }
-                },
-                Err(e) => {
-                    eprintln!("Error parsing dispatcher: {e}");
-                },
+                }
+                Err(e) => eprintln!("    Error parsing dispatcher: {e}"),
             }
         }
-
-        if max_count > 0 && current >= max_count {
-            println!("Reached maximum reaction count ({max_count})");
-            Ok(false)
-        } else {
-            Ok(true)
-        }
+        Ok(true)
     }
 }
 
-/// Manager for handling multiple reactions and event listeners.
-#[derive(Debug)]
+// --- Reaction Manager ---
+
+#[derive(Default, Debug)]
 pub struct ReactionManager {
-    reactions: Vec<(Reaction, Arc<AtomicUsize>)>,
+    reactions: Vec<Arc<Reaction>>,
 }
 
 impl ReactionManager {
-    /// Create a new reaction manager.
     pub fn new() -> Self {
-        Self { reactions: Vec::new() }
+        Self::default()
     }
 
-    /// Add a reaction to the manager.
     pub fn add_reaction(&mut self, reaction: Reaction) {
-        let counter = Arc::new(AtomicUsize::new(0));
-        self.reactions.push((reaction, counter));
+        self.reactions.push(Arc::new(reaction));
     }
 
-    /// Start listening for events and executing reactions.
-    pub fn start(&self) -> Result<(), String> {
+    pub fn start(self) -> Result<(), String> {
         println!("Starting reaction manager with {} reactions", self.reactions.len());
-
         let mut event_listener = EventListener::new();
 
-        for (reaction, counter) in &self.reactions {
-            self.setup_handler(&mut event_listener, reaction, counter)?;
+        for reaction in &self.reactions {
+            self.setup_handler(&mut event_listener, Arc::clone(reaction));
         }
 
-        event_listener
-            .start_listener()
-            .map_err(|e| format!("{e}"))
+        event_listener.start_listener().map_err(|e| e.to_string())
     }
 
-    /// Set up a handler for a specific event type.
-    fn setup_handler(
-        &self,
-        event_listener: &mut EventListener,
-        reaction: &Reaction,
-        counter: &Arc<AtomicUsize>,
-    ) -> Result<(), String> {
-        let reaction_clone = reaction.clone();
-        let counter_clone = Arc::clone(counter);
+    fn setup_handler(&self, event_listener: &mut EventListener, reaction: Arc<Reaction>) {
+        let handler_reaction = Arc::clone(&reaction);
+        let handler = move || {
+            if let Err(e) = handler_reaction.execute() {
+                eprintln!("Error executing reaction: {e}");
+            }
+        };
 
-        match &reaction.event_type {
-            EventType::Window(WindowEventType::Opened) => {
-                event_listener.add_window_opened_handler(move |data| {
-                    if let Some(filter) = &reaction_clone.window_filter {
-                        if let Some(title_pattern) = filter.strip_prefix("title:") {
-                            if !data
-                                .window_title
-                                .contains(title_pattern)
-                            {
-                                return;
-                            }
-                        } else if let Some(class_pattern) = filter.strip_prefix("class:") {
-                            if !data
-                                .window_class
-                                .contains(class_pattern)
-                            {
-                                return;
-                            }
-                        }
-                    }
-
-                    if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {e}");
-                    }
-                });
-            },
-            EventType::Window(WindowEventType::Closed) => {
-                let has_window_filter = reaction.window_filter.is_some();
-                event_listener.add_window_closed_handler(move |_address| {
-                    if has_window_filter {
-                        println!("Note: Window filter ignored for closed events");
-                    }
-
-                    if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {e}");
-                    }
-                });
-            },
-            EventType::Window(WindowEventType::Moved) => {
-                let has_window_filter = reaction.window_filter.is_some();
-                event_listener.add_window_moved_handler(move |_move_data| {
-                    if has_window_filter {
-                        println!("Note: Window filter ignored for move events");
-                    }
-
-                    if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {e}");
-                    }
-                });
-            },
-            EventType::Window(WindowEventType::Active) => {
-                event_listener.add_active_window_changed_handler(move |data| {
-                    if let Some(window_data) = data.as_ref() {
-                        if let Some(filter) = &reaction_clone.window_filter {
-                            if let Some(title_pattern) = filter.strip_prefix("title:") {
-                                if !window_data
-                                    .title
-                                    .contains(title_pattern)
-                                {
-                                    return;
-                                }
-                            } else if let Some(class_pattern) = filter.strip_prefix("class:") {
-                                if !window_data
-                                    .class
-                                    .contains(class_pattern)
-                                {
-                                    return;
-                                }
-                            }
-                        }
-                    } else if reaction_clone.window_filter.is_some() {
-                        return;
-                    }
-
-                    if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {e}");
-                    }
-                });
-            },
-            EventType::Workspace(WorkspaceEventType::Changed) => {
-                event_listener.add_workspace_changed_handler(move |_| {
-                    if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {e}");
-                    }
-                });
-            },
-            EventType::Workspace(WorkspaceEventType::Added) => {
-                event_listener.add_workspace_added_handler(move |_| {
-                    if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {e}");
-                    }
-                });
-            },
-            EventType::Workspace(WorkspaceEventType::Deleted) => {
-                event_listener.add_workspace_deleted_handler(move |_| {
-                    if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {e}");
-                    }
-                });
-            },
-            EventType::Monitor => {
-                event_listener.add_active_monitor_changed_handler(move |_| {
-                    if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {e}");
-                    }
-                });
-            },
-            EventType::Float => {
-                event_listener.add_float_state_changed_handler(move |_| {
-                    if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {e}");
-                    }
-                });
-            },
-            EventType::Fullscreen => {
-                event_listener.add_fullscreen_state_changed_handler(move |_| {
-                    if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {e}");
-                    }
-                });
-            },
-            EventType::Layout => {
-                event_listener.add_layout_changed_handler(move |_| {
-                    if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {e}");
-                    }
-                });
-            },
-            EventType::Group(GroupEventType::Toggled) => {
-                event_listener.add_group_toggled_handler(move |_| {
-                    if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {e}");
-                    }
-                });
-            },
-            EventType::Group(GroupEventType::MovedIn) => {
-                event_listener.add_window_moved_into_group_handler(move |_| {
-                    if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {e}");
-                    }
-                });
-            },
-            EventType::Group(GroupEventType::MovedOut) => {
-                event_listener.add_window_moved_out_of_group_handler(move |_| {
-                    if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {e}");
-                    }
-                });
-            },
-            EventType::Config => {
-                event_listener.add_config_reloaded_handler(move || {
-                    if let Err(e) = reaction_clone.execute(&counter_clone) {
-                        eprintln!("Error executing reaction: {e}");
-                    }
-                });
-            },
+        match reaction.event_type {
+            EventType::Window(subtype) => self.setup_window_handler(event_listener, subtype, reaction),
+            EventType::Workspace(subtype) => self.setup_workspace_handler(event_listener, subtype, handler),
+            EventType::Monitor => event_listener.add_active_monitor_changed_handler(move |_| handler()),
+            EventType::Float => event_listener.add_float_state_changed_handler(move |_| handler()),
+            EventType::Fullscreen => event_listener.add_fullscreen_state_changed_handler(move |_| handler()),
+            EventType::Layout => event_listener.add_layout_changed_handler(move |_| handler()),
+            EventType::Group(subtype) => self.setup_group_handler(event_listener, subtype, handler),
+            EventType::Config => event_listener.add_config_reloaded_handler(handler),
         }
+    }
 
-        Ok(())
+    fn setup_window_handler(&self, event_listener: &mut EventListener, subtype: WindowEventType, reaction: Arc<Reaction>) {
+        let window_handler_reaction = Arc::clone(&reaction);
+        let window_handler = move |class: &str, title: &str| {
+            if is_window_match(window_handler_reaction.window_filter.as_ref(), class, title) {
+                if let Err(e) = window_handler_reaction.execute() {
+                    eprintln!("Error executing reaction: {e}");
+                }
+            }
+        };
+
+        match subtype {
+            WindowEventType::Opened => {
+                event_listener.add_window_opened_handler(move |data| {
+                    window_handler(&data.window_class, &data.window_title);
+                });
+            }
+            WindowEventType::Active => {
+                let active_handler_reaction = Arc::clone(&reaction);
+                event_listener.add_active_window_changed_handler(move |data| {
+                    if let Some(win_data) = data {
+                        window_handler(&win_data.class, &win_data.title);
+                    } else if active_handler_reaction.window_filter.is_some() {
+                        // No window data, but filter exists, so no match
+                    } else {
+                        // No window data and no filter, so execute
+                        if let Err(e) = active_handler_reaction.execute() {
+                            eprintln!("Error executing reaction: {e}");
+                        }
+                    }
+                });
+            }
+            WindowEventType::Closed => {
+                let closed_handler_reaction = Arc::clone(&reaction);
+                event_listener.add_window_closed_handler(move |_| {
+                    if closed_handler_reaction.window_filter.is_some() {
+                        println!("Note: Window filter is not applicable to 'closed' events.");
+                    }
+                    if let Err(e) = closed_handler_reaction.execute() {
+                        eprintln!("Error executing reaction: {e}");
+                    }
+                });
+            }
+            WindowEventType::Moved => {
+                let moved_handler_reaction = Arc::clone(&reaction);
+                event_listener.add_window_moved_handler(move |_| {
+                    if moved_handler_reaction.window_filter.is_some() {
+                        println!("Note: Window filter is not applicable to 'moved' events.");
+                    }
+                    if let Err(e) = moved_handler_reaction.execute() {
+                        eprintln!("Error executing reaction: {e}");
+                    }
+                });
+            }
+        }
+    }
+    
+    fn setup_workspace_handler(&self, event_listener: &mut EventListener, subtype: WorkspaceEventType, handler: impl Fn() + Send + Sync + 'static) {
+        match subtype {
+            WorkspaceEventType::Changed => event_listener.add_workspace_changed_handler(move |_| handler()),
+            WorkspaceEventType::Added => event_listener.add_workspace_added_handler(move |_| handler()),
+            WorkspaceEventType::Deleted => event_listener.add_workspace_deleted_handler(move |_| handler()),
+        }
+    }
+
+    fn setup_group_handler(&self, event_listener: &mut EventListener, subtype: GroupEventType, handler: impl Fn() + Send + Sync + 'static) {
+        match subtype {
+            GroupEventType::Toggled => event_listener.add_group_toggled_handler(move |_| handler()),
+            GroupEventType::MovedIn => event_listener.add_window_moved_into_group_handler(move |_| handler()),
+            GroupEventType::MovedOut => event_listener.add_window_moved_out_of_group_handler(move |_| handler()),
+        }
     }
 }
 
-/// A configuration file containing multiple reactions.
-#[derive(Debug, Serialize, Deserialize)]
+fn is_window_match(filter: Option<&WindowIdentifier>, window_class: &str, window_title: &str) -> bool {
+    match filter {
+        Some(WindowIdentifier::ClassRegularExpression(pattern)) => window_class.contains(pattern),
+        Some(WindowIdentifier::Title(pattern)) => window_title.contains(pattern),
+        Some(_) => false, // PID/Address matching not supported by events
+        None => true,     // No filter means it's always a match
+    }
+}
+
+// --- Config File Handling ---
+
+#[derive(Debug, Deserialize)]
 pub struct ReactConfig {
-    /// List of reactions to run
-    pub reactions: Vec<Reaction>,
+    #[serde(rename = "reactions")]
+    pub reactions_config: Vec<ReactionConfig>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ReactionConfig {
+    #[serde(flatten)]
+    reaction: Reaction,
 }
 
 impl ReactConfig {
-    /// Load a ReactConfig from a TOML file.
-    /// ```bash
-    /// hyde-ipc global path/to/config.toml
-    /// ````
-    /// > [!WARN]
-    /// > make sure the `hyde-ipc.service` is running
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
-        let content = fs::read_to_string(path.as_ref())
-            .map_err(|e| format!("Failed to read config file: {e}"))?;
-
+        let content = fs::read_to_string(path.as_ref()).map_err(|e| format!("Failed to read config file: {e}"))?;
         toml::from_str(&content).map_err(|e| format!("Failed to parse TOML config file: {e}"))
     }
 
-    /// Run all reactions in this config.
-    pub fn run(&self) -> Result<(), String> {
+    pub fn into_manager(self) -> ReactionManager {
         let mut manager = ReactionManager::new();
-
-        for reaction in &self.reactions {
-            manager.add_reaction(reaction.clone());
+        for config in self.reactions_config {
+            manager.add_reaction(Reaction {
+                counter: Arc::new(AtomicUsize::new(0)),
+                ..config.reaction
+            });
         }
-
-        manager.start()
+        manager
     }
 }
 
-/// Run reactions from a configuration file.
 pub fn run_from_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
     println!("Loading reactions from {}", path.as_ref().display());
-
     let config = ReactConfig::from_file(path)?;
-
-    println!("Loaded {} reactions", config.reactions.len());
-
-    config.run()
+    println!("Loaded {} reactions", config.reactions_config.len());
+    let manager = config.into_manager();
+    manager.start()
 }
