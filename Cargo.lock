@@ -620,7 +620,7 @@ dependencies = [
 
 [[package]]
 name = "hyde-ipc"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "clap",
  "clap_complete",
@@ -634,7 +634,7 @@ dependencies = [
 
 [[package]]
 name = "hyde-ipc-lib"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "dirs 6.0.0",
  "service-manager",
@@ -667,7 +667,7 @@ dependencies = [
 
 [[package]]
 name = "hyprland-macros"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1166,9 +1166,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.140"
+version = "1.0.143"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20068b6e96dc6c9bd23e01df8827e6c7e1f2fddd43c21810382803c136b99373"
+checksum = "d401abef1d108fbd9cbaebc3e46611f4b1021f714a0597a71f41ee463f5f4a5a"
 dependencies = [
  "itoa",
  "memchr",
