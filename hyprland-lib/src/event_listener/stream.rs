@@ -6,7 +6,7 @@ use async_stream::try_stream;
 use futures_lite::{Stream, StreamExt};
 
 /// Event listener, but [Stream]
-/// This is the new prefered way of listening for events
+/// This is the new preferred way of listening for events
 /// as its more idiomatic, and allows for more efficient memory management
 ///
 /// # Examples

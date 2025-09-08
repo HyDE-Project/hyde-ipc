@@ -490,19 +490,19 @@ pub enum Event {
     /// An unknown event
     Unknown(UnknownEventData),
     /// An event that emits when the current workspace is changed,
-    /// it is the equivelant of the `workspacev2` event
+    /// it is the equivalent of the `workspacev2` event
     WorkspaceChanged(WorkspaceEventData),
     /// An event that emits when a workspace is deleted,
-    /// it is the equivelant of the `destroyworkspacev2` event
+    /// it is the equivalent of the `destroyworkspacev2` event
     WorkspaceDeleted(WorkspaceEventData),
     /// An event that emits when a workspace is created,
-    /// it is the equivelant of the `createworkspacev2` event
+    /// it is the equivalent of the `createworkspacev2` event
     WorkspaceAdded(WorkspaceEventData),
     /// An event that emits when a workspace is moved to another monitor,
-    /// it is the equivelant of the `moveworkspacev2` event
+    /// it is the equivalent of the `moveworkspacev2` event
     WorkspaceMoved(WorkspaceMovedEventData),
     /// An event that emits when a workspace is renamed,
-    /// it is the equivelant of the `renameworkspace` event
+    /// it is the equivalent of the `renameworkspace` event
     WorkspaceRenamed(NonSpecialWorkspaceEventData),
     #[doc(hidden)]
     ActiveWindowChangedV1(Option<(String, String)>), // internal intermediary event
@@ -514,77 +514,77 @@ pub enum Event {
     /// it waits for both, and then sends one unified event :)
     ActiveWindowChanged(Option<WindowEventData>),
     /// An event that emits when the active monitor is changed,
-    /// it is the equivelant of the `focusedmon` event
+    /// it is the equivalent of the `focusedmon` event
     ActiveMonitorChanged(MonitorEventData),
     /// An event that emits when the current fullscreen state is changed,
-    /// it is the equivelant of the `fullscreen` event
+    /// it is the equivalent of the `fullscreen` event
     FullscreenStateChanged(bool),
     /// An event that emits when a new monitor is added/connected,
-    /// it is the equivelant of the `monitoraddedv2` event
+    /// it is the equivalent of the `monitoraddedv2` event
     MonitorAdded(MonitorAddedEventData),
     /// An event that emits when a monitor is removed/disconnected,
-    /// it is the equivelant of the `monitorremoved` event
+    /// it is the equivalent of the `monitorremoved` event
     MonitorRemoved(String),
     /// An event that emits when a window is opened,
-    /// it is the equivelant of the `openwindow` event
+    /// it is the equivalent of the `openwindow` event
     WindowOpened(WindowOpenEvent),
     /// An event that emits when a window is closed,
-    /// it is the equivelant of the `closewindow` event
+    /// it is the equivalent of the `closewindow` event
     WindowClosed(Address),
     /// An event that emits when a window is moved to a different workspace,
-    /// it is the equivelant of the `movewindowv2` event
+    /// it is the equivalent of the `movewindowv2` event
     WindowMoved(WindowMoveEvent),
     /// An event that emits when a special workspace is closed on the current monitor,
-    /// it is the equivelant of the `activespecial` event
+    /// it is the equivalent of the `activespecial` event
     SpecialRemoved(String),
     /// An event that emits when the current special workspace is changed on a monitor,
-    /// it is the equivelant of the `activespecial` event
+    /// it is the equivalent of the `activespecial` event
     ChangedSpecial(ChangedSpecialEventData),
     /// An event that emits when the layout of a keyboard changes,
-    /// it is the equivelant of the `activelayout` event
+    /// it is the equivalent of the `activelayout` event
     LayoutChanged(LayoutEvent),
     /// An event that emits when the current keybind submap changes,
-    /// it is the equivelant of the `submap` event
+    /// it is the equivalent of the `submap` event
     SubMapChanged(String),
     /// An event that emits when a layer shell surface is opened/mapped,
-    /// it is the equivelant of the `openlayer` event
+    /// it is the equivalent of the `openlayer` event
     LayerOpened(String),
     /// An event that emits when a layer shell surface is closed/unmapped,
-    /// it is the equivelant of the `closelayer` event
+    /// it is the equivalent of the `closelayer` event
     LayerClosed(String),
     /// An event that emits when the floating state of a window changes,
-    /// it is the equivelant of the `changefloatingmode` event
+    /// it is the equivalent of the `changefloatingmode` event
     FloatStateChanged(WindowFloatEventData),
     /// An event that emits when the a window requests the urgent state,
-    /// it is the equivelant of the `urgent` event
+    /// it is the equivalent of the `urgent` event
     UrgentStateChanged(Address),
     /// An event that emits when the title of a window changes,
-    /// it is the equivelant of the `windowtitlev2` event
+    /// it is the equivalent of the `windowtitlev2` event
     WindowTitleChanged(WindowTitleEventData),
     /// An event that emits when the screencopy state of a client changes
     /// AKA, a process wants to capture/record your screen,
-    /// it is the equivelant of the `screencast` event
+    /// it is the equivalent of the `screencast` event
     Screencast(ScreencastEventData),
     /// An event that emits when hyprland is reloaded,
-    /// it is the equivelant of the `configreloaded` event
+    /// it is the equivalent of the `configreloaded` event
     ConfigReloaded,
     /// An event that emits when `ignoregrouplock` is toggled,
-    /// it is the equivelant of the `ignoregrouplock` event
+    /// it is the equivalent of the `ignoregrouplock` event
     IgnoreGroupLockStateChanged(bool),
     /// An event that emits when `lockgroups` is toggled,
-    /// it is the equivelant of the `lockgroups` event
+    /// it is the equivalent of the `lockgroups` event
     LockGroupsStateChanged(bool),
     /// An event that emits when a window is pinned or unpinned,
-    /// it is the equivelant of the `pin` event
+    /// it is the equivalent of the `pin` event
     WindowPinned(WindowPinEventData),
     /// And event that emits when a group is toggled,
-    /// it is the equivelant of the `togglegroup`
+    /// it is the equivalent of the `togglegroup`
     GroupToggled(GroupToggledEventData),
     /// And event that emits when a window is moved into a group,
-    /// it is the equivelant of the `moveintogroup`
+    /// it is the equivalent of the `moveintogroup`
     WindowMovedIntoGroup(Address),
     /// And event that emits when a window is moved out of a group,
-    /// it is the equivelant of the `moveoutofgroup`
+    /// it is the equivalent of the `moveoutofgroup`
     WindowMovedOutOfGroup(Address),
 }
 
