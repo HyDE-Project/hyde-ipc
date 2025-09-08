@@ -1,298 +1,159 @@
-# HyDE-IPC: Rust Bindings & CLI for Hyprland IPC
+# Hyde-IPC
 
-[![Made for Hyprland](https://img.shields.io/badge/Made%20for-Hyprland-blue)](https://github.com/hyprwm/Hyprland)
-[![License: MIT](https://img.shields.io/badge/License-MIT.svg)](./LICENSE)
+**A powerful and extensible command-line tool for interacting with the Hyprland compositor's IPC socket.**
 
-**hyde-ipc** is a Rust Implementation for interacting with the [Hyprland](https://github.com/hyprwm/Hyprland) via its IPC interface. `hyde-ipc` enables you to control Hyprland, monitor events, and automate your workflow with a flexible reaction system using `toml` config files.
+Hyde-IPC provides a comprehensive set of commands for controlling, querying, and automating window management workflows. While it can be used for simple commands like `hyprctl`, its primary strength lies in its advanced event-reaction system, which allows for the creation of sophisticated, declarative automation rules that run persistently in the background.
 
----
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Core Commands](#core-commands)
+- [Advanced Automation with Event-Reactions](#advanced-automation-with-event-reactions)
+  - [The `reactions.toml` Config File](#the-reactionstoml-config-file)
+  - [Persistent Automation (Systemd Service)](#persistent-automation-systemd-service)
+  - [Testing and Inline Reactions](#testing-and-inline-reactions)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Features
 
-- **Event Listening:** Listen and react to Hyprland events in real time.
-- **Reactive Event System:** Automate reactions to Hyprland events using TOML/JSON configs.
-- **Fast Native Dispatchers:** Native and non-blocking Rust implementations for many dispatchers faster than shelling out!
-- **Flexible CLI:** Scriptable, async, and supports advanced low-level automation.
+- **Direct Command Dispatching**: Execute any Hyprland dispatcher command synchronously or asynchronously.
+- **State Querying**: Get real-time information from the compositor.
+- **Event Listening**: Monitor the Hyprland event stream for debugging and diagnostics.
+- **Declarative Event-Reaction System**: Define complex automation rules in a simple TOML format to run in the background.
+- **Systemd Service Integration**: Run `hyde-ipc` as a persistent background service to handle global event reactions seamlessly.
 
-## install
+## Installation
 
-### Archlinux
+### Arch Linux
 
-hyde-ipc is pushed to [AUR](https://aur.archlinux.org/packages/hyde-ipc)
-
-```bash
-yay -S hyde-ipc-bin         # perbuilt binaries
-# or
-yay -S hyde-ipc             # Build from source
-```
-
-### clone and build
-
-Makefile defaults to a system wide install
+Install the `hyde-ipc` package from the [AUR](https://aur.archlinux.org/packages/hyde-ipc).
 
 ```bash
-git  clone --depth 1 https://github.com/HyDE-Project/hyde-ipc.git
-cd hyde-ipc
-make
+paru -S hyde-ipc
 ```
 
-or use `cargo` for local build
+### From Source
 
-```bash
-git  clone --depth 1 https://github.com/HyDE-Project/hyde-ipc.git
-cd hyde-ipc
-cargo build --frozen
-```
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/HyDE-Project/hyde-ipc.git
+    cd hyde-ipc
+    ```
 
-## usage
+2.  **Build and install**:
+    ```bash
+    cargo build --release
+    sudo cp target/release/hyde-ipc /usr/local/bin/
+    ```
 
-hyde-ipc includes 4
+## Core Commands
 
-```bash
-hydeipc <Command> <options>
-```
+`hyde-ipc` provides several direct commands for interacting with Hyprland.
 
-### `hyprpland` configuration Management (Keywords)
+-   **`dispatch`**: Executes a Hyprland dispatcher command. This is your main tool for scripting and direct control.
+    ```bash
+    # Open a terminal
+    hyde-ipc dispatch exec "kitty"
+    # Move focus to the window on the right
+    hyde-ipc dispatch movefocus right
+    ```
+    For a complete list of available dispatchers, run `hyde-ipc dispatch --list-dispatchers` or consult the [Dispatcher Reference](https://github.com/HyDE-Project/hyde-ipc/wiki/3.-Dispatchers) in the wiki.
 
-```bash
+-   **`listen`**: Connects to the Hyprland event socket and prints all incoming events. This is a powerful tool for debugging or discovering the event names and data you need to build your automations.
+    ```bash
+    # Listen for all events
+    hyde-ipc listen
+    # Listen only for workspace-related events
+    hyde-ipc listen --filter workspace
+    ```
 
-hyde-ipc keyword --help
+-   **`keyword`**: Gets or sets a Hyprland keyword value.
+    ```bash
+    # Get the current border size
+    hyde-ipc keyword --get general:border_size
+    # Set the border size to 2
+    hyde-ipc keyword --set general:border_size 2
+    ```
 
-# for example to get the blur size of your current config
+-   **`query`**: Retrieves specific information from Hyprland, like the active window or cursor position.
+    ```bash
+    hyde-ipc query cursor-pos
+    ```
 
-hyde-ipc keyword --get --async decoration:blur:size
-#or
-hyde-ipc keyword -g -a decoration:blur:size
+## Advanced Automation with Event-Reactions
 
-and to set it to 8
+The true power of `hyde-ipc` is its ability to **react to events** and perform actions automatically. This is primarily achieved by creating a configuration file and running it as a background service.
 
-hyde-ipc keyword --set --async decoration:blur:size 8
+### The `reactions.toml` Config File
 
-```
+You define your automation rules in a `reactions.toml` file. This file contains an array of `[[reactions]]` tables, where each table is a rule that binds an event to a series of commands.
 
-### Event Listening
+**Default Location**: `~/.config/hyde-ipc/reactions.toml`
 
-Listen for and log Hyprland events:
-
-```bash
-hyde-ipc listen
-
-# or with more options
-hypr-rs listen --filter window --max-events 5 --json
-```
-
-> [!NOTE]
-> listen is fully async by default
-
-### Dispatch
-
-Execute a Hyprland dispatcher (event)
-
-```bash
-
-
-#for example to toggle floating mode for the active window
-hyde-ipc dispatch ToggleFloating
-
-# or to focus a window an specific window
-hyde-ipc dispatch --async FocusWindow "title:^(Terminal)$"
-
-```
-
-> [!NOTE]
-> Native dispatchers are faster than shelling out to `hyprctl`. Use them whenever possible!
-
-all hyprland `Dispatchers` are NOT natively supported yet.
-
-You can get the list of available dispatchers and more usage examples by running:
-
-```bash
-hyde-ipc dispatch --list-dispatchers
-# or
-hyde-ipc dispatch -l
-
-```
-
-### Automation and `react` Command
-
-You can use `react` command to listen for an specific event and dispatch an event (execute a command) as a reaction to the event.
-
-In this simple example, we toggle floating for any window when it opens.
-
-```bash
-hyde-ipc react -i --event window --subtype opened --dispatch ToggleFloating
-```
-
-#### react configuration files
-
-for more control over automation you can use `toml` config files including `reaction` instructions . with `react` command.
-
-a simple example to get notified when a window's state is changed to float :
-
+**Example `reactions.toml`**:
 ```toml
+# This reaction will automatically move any browser window to workspace 2 when it opens.
 [[reactions]]
-
-event_type = "Float"
-dispatcher = "Exec"
-args = ["notify-send", "Float Toggled"]
-
-```
-
-you can filter events down, and also chain dispatchers that are triggered by the event.
-For example, in below toml file, we set alacritty mode to float and resize it to 800x600 and center it when it opens.
-
-```toml
-# my-reaction.toml
-[[reactions]]
-event_type = { Window = "Opened" }
-window_filter = "class:Alacritty"
+name = "Browser on Workspace 2"
+event_type = { window = "opened" }
+window_filter = "class:^(firefox|google-chrome)$"
 dispatchers = [
-  { name = "FocusWindow", args = ["class:Alacritty"] },
-  { name = "ToggleFloating" },
-  { name = "ResizeActive", args = ["exact", "800", "600"] },
-  { name = "CenterWindow" }
+  { name = "movetoworkspacesilent", args = ["2"] }
+]
+
+# This reaction plays a sound whenever you take a screenshot with grim.
+[[reactions]]
+name = "Screenshot Sound"
+event_type = { window = "closed" }
+window_filter = "class:^(grim)$"
+dispatchers = [
+    { name = "exec", args = ["paplay", "/usr/share/sounds/freedesktop/stereo/camera-shutter.oga"] }
 ]
 ```
+For a complete guide on the configuration file syntax and all available options, please see the [Configuration](https://github.com/HyDE-Project/hyde-ipc/wiki/5.-Configuration) and [Event-Reaction System](https://github.com/HyDE-Project/hyde-ipc/wiki/4.-Event-Reaction-System) pages in the wiki.
 
-you can source the file by running:
+### Persistent Automation (Systemd Service)
 
-```bash
-hyde-ipc react -c ./path/to/my-reaction.toml
-```
+For your `reactions.toml` rules to be active permanently, `hyde-ipc` provides a `systemd` user service that runs in the background and listens for events.
 
-TODO explain optional fields in toml configs
+1.  **Install the service**: This creates and enables the service file.
+    ```bash
+    hyde-ipc setup --install
+    ```
 
-#### global configuration file.
+2.  **Create your `reactions.toml`**: Create your configuration file at `~/.config/hyde-ipc/reactions.toml`.
 
-to have a global config file and have it sourced by default you can run:
+3.  **Set the global config and start the service**: The `global` command installs your config file for the service to use and (re)starts it, applying your rules.
+    ```bash
+    hyde-ipc global --config-path ~/.config/hyde-ipc/reactions.toml
+    ```
 
-```bash
-# make sure you run the setup once after hyde-ipc is installed
-hyde-ipc global --setup
+4.  **Manage the service**: You can start, stop, and monitor the service at any time.
+    - `hyde-ipc setup --start` / `hyde-ipc setup --kill`
+    - `hyde-ipc setup --restart` (useful after manually editing the config)
+    - `hyde-ipc setup --check` (check status)
+    - `hyde-ipc setup --watch` (view live logs)
 
-# then you can source a toml file as global config
-hyde-ipc global ./path/to/my-reaction.toml
+### Testing and Inline Reactions
 
-# and to stop the global automation run
-hyde-ipc global --kill
+While the service is the primary way to use reactions, you can test a config file directly or create a temporary, one-off reaction from the command line. This is useful for debugging a new rule before adding it to your main configuration.
 
-```
+-   **Test a config file**:
+    ```bash
+    hyde-ipc react --config /path/to/your/reactions.toml
+    ```
+-   **Test a single rule inline**:
+    ```bash
+    # Make any newly focused Alacritty terminal float
+    hyde-ipc react --inline -e window -s active -f "class:^(Alacritty)$" togglefloating
+    ```
 
-#### More examples
+## Contributing
 
-```bash
+Contributions are welcome! Please see [CONTRIBUTING.md](https://github.com/HyDE-Project/hyde-ipc/blob/main/wiki/CONTRIBUTING.md) for details on how to get started.
 
-# you can pass --async before dispatcher
+## License
 
-hyde-ipc dispatch --async MoveFocus Right
-
-hyde-ipc dispatch Workspace 3
-
-hyde-ipc dispatch Exec "kitty"
-
-```
-
-class and title are not natively supported.
-
-```bash
-
-hyde-ipc dispatch ToggleFloating "class:^(firefox)$"
-
-hyde-ipc dispatch --async FocusWindow "title:^(Terminal)$"
-
-hyde-ipc dispatch ToggleFloating "address:0x12345678"
-
-```
-
-React Examples
-
-```bash
-# Show a notification when a window's float state changes
-hypr-ipc react --event float --dispatch Exec --params "notify-send 'Float State Changed' "
-```
-
-**Limit the number of reactions:** (not recommended)
-
-```bash
-# Move to workspace 1 after 3 window open events
-hypr-ipc react --event window --subtype opened --dispatch Workspace --params 1 --max-reactions 3
-```
-
-More configuration examples,
-
-this exmaple reacts to float state changes:
-
-by the way in hyprland socket workspaces are 0-indexed for some reason meaning if you want to move to workspace 4 you need to pass 3 as the workspace number
-
-`max_count` , `name` and `description` fiels are optional.
-
-```toml
-[[reactions]]
-event_type = "Float"
-dispatcher = "Exec"
-args = ["notify-send", "Float Toggled", "A window's float state was changed"]
-max_count = 0
-name = "Float Toggle Notification"
-description = "Sends a notification when a window's float state changes"
-
-[[reactions]]
-event_type = "Float"
-dispatcher = "Exec"
-
-# example on how to use dispatchers that are not natively supported, (notify send is supported but if you have a dispatcher that is not supported this is what you do)
-args = ["sh", "-c", "hyprctl activewindow | grep -i title | cut -d':' -f2 | xargs notify-send 'Window Name'"]
-max_count = 0
-name = "Window Name Notification"
-description = "Shows the name of the window that changed float state"
-
-[[reactions]]
-event_type = "Float"
-dispatcher = "MoveToWorkspace"
-args = ["4"]
-```
-
-various window and workspace management reactions:
-
-```toml
-
-[[reactions]]
-event_type = { Window = "Opened" }
-dispatcher = "Exec"
-args = ["notify-send", "New Window", "A new window has been opened"]
-max_count = 0
-name = "Window Open Notification"
-description = "Sends a notification when a new window opens"
-
-# Workspace change notification
-[[reactions]]
-event_type = { Workspace = "Changed" }
-dispatcher = "Exec"
-args = ["sh", "-c", "WORKSPACE=$(hyprctl activeworkspace | grep -i id | awk '{print $2}') && notify-send 'Workspace Changed' \"Switched to workspace $WORKSPACE\""]
-max_count = 0
-# Note: is_async field is deprecated and will be ignored
-name = "Workspace Change Notification"
-description = "Shows which workspace you switched to"
-
-# Auto-float new windows
-[[reactions]]
-event_type = { Window = "Opened" }
-dispatcher = "ToggleFloating"
-args = []
-max_count = 0
-# Note: is_async field is deprecated and will be ignored
-name = "Auto-Float New Windows"
-description = "Automatically makes new windows floating"
-
-# Move Firefox to workspace 2
-[[reactions]]
-event_type = { Window = "Opened" }
-dispatcher = "MoveToWorkspaceOnce"
-args = ["class:^(firefox)$", "2"]
-max_count = 0
-# Note: is_async field is deprecated and will be ignored
-name = "Firefox to Workspace 2"
-description = "Automatically moves Firefox windows to workspace 2"
-
-```
-
-if you get `$ needs a variable name` error when using hyprland syntax id dispatchers, escape the `$` sign with `\`
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/HyDE-Project/hyde-ipc/blob/main/LICENSE) file for details.

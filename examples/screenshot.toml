@@ -1,0 +1,5 @@
+[[reactions]]
+name = "Screenshot Sound"
+event_type = { window = "Opened" }
+window_filter = "title:satty"
+dispatchers = [{ name = "exec", args = ["paplay", "~/Downloads/0000.mp3"] }]
