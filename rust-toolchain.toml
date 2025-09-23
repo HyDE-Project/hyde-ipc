@@ -1,5 +1,4 @@
 [toolchain]
-channel = "nightly-2025-07-02"
-# (667787527 2025-07-02)
-# switch to same stable on release
+channel = "nightly-2025-09-20"
+# switch to same stable on release on Dec 11 2025
 components = ["rustfmt"]
