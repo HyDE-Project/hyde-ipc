@@ -328,13 +328,51 @@ pub enum Dispatch {
     ForceRendererReload,
     /// Exit Hyprland
     Exit,
-    /// Resize the active window
+    /// Resize the active window to an exact size by providing X and optional Y.
+    ///
+    /// Notes:
+    /// - Values are interpreted as exact sizes by default.
+    /// - Negative values are allowed and do not require `--` (hyphen values accepted).
     ResizeActive {
+        /// Exact width (X). Negative allowed.
+        #[arg(allow_hyphen_values = true)]
+        x: i16,
+        /// Exact height (Y). Defaults to 0 if omitted. Negative allowed.
+        #[arg(default_value_t = 0, allow_hyphen_values = true)]
+        y: i16,
+    },
+    /// Legacy form kept for internal use (hidden): resize-active-legacy exact|delta ...
+    #[command(name = "resize-active-legacy", hide = true)]
+    ResizeActiveLegacy {
         #[command(subcommand)]
         params: ResizeCmd,
     },
+    /// Expand the active window by delta in width (dx) and height (dy).
+    ///
+    /// dy defaults to 0 if not specified. Use positive numbers only; the command
+    /// applies the correct sign internally.
+    ExpandActive {
+        /// Amount to expand in the x direction (positive number)
+        #[arg()]
+        dx: i16,
+        /// Amount to expand in the y direction (positive number, defaults to 0)
+        #[arg(default_value_t = 0)]
+        dy: i16,
+    },
+    /// Shrink the active window by delta in width (dx) and height (dy).
+    ///
+    /// dy defaults to 0 if not specified. Use positive numbers only; the command
+    /// applies the correct sign internally.
+    ShrinkActive {
+        /// Amount to shrink in the x direction (positive number)
+        #[arg()]
+        dx: i16,
+        /// Amount to shrink in the y direction (positive number, defaults to 0)
+        #[arg(default_value_t = 0)]
+        dy: i16,
+    },
     /// Resize a specific window by pixel
-    #[command(group(ArgGroup::new("winid_resize").required(true).args(&["class", "title", "pid", "address"])))]
+    #[command(group(ArgGroup::new("winid_resize").required(true).args(&["class", "title", "pid", "address"]))) ]
     ResizeWindowPixel {
         #[command(subcommand)]
         params: ResizeCmd,

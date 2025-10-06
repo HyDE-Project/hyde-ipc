@@ -189,8 +189,10 @@ fn print_dispatchers_list() {
   move-window <direction>                            - Move window in a direction
   move-active <position>                             - Move the active window to a position
   move-window-pixel <position> <win>                  - Move a specific window to a position
-  resize-active <position>                           - Resize the active window
+  resize-active <x> [y]                              - Resize the active window (exact by default; negatives allowed)
   resize-window-pixel <pos> <win>                     - Resize a specific window
+  expand-active <dx> [dy]                             - Expand the active window by delta (dy defaults to 0)
+  shrink-active <dx> [dy]                             - Shrink the active window by delta (dy defaults to 0)
 
   Workspace management:
   workspace <workspace>                             - Switch to workspace (number, previous, empty, name:NAME)

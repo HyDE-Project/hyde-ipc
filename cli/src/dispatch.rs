@@ -86,11 +86,23 @@ impl TryFrom<DispatchCmd> for DispatchType<'static> {
             DispatchCmd::FocusCurrentOrLast => Ok(DispatchType::FocusCurrentOrLast),
             DispatchCmd::ForceRendererReload => Ok(DispatchType::ForceRendererReload),
             DispatchCmd::Exit => Ok(DispatchType::Exit),
-            DispatchCmd::ResizeActive { params } => {
+            DispatchCmd::ResizeActive { x, y } => {
+                let position = Position::Exact(x, y);
+                Ok(DispatchType::ResizeActive(position))
+            },
+            DispatchCmd::ResizeActiveLegacy { params } => {
                 let position = match params {
                     ResizeCmd::Delta { dx, dy } => Position::Delta(dx, dy),
                     ResizeCmd::Exact { width, height } => Position::Exact(width, height),
                 };
+                Ok(DispatchType::ResizeActive(position))
+            },
+            DispatchCmd::ExpandActive { dx, dy } => {
+                let position = Position::Delta(dx, dy);
+                Ok(DispatchType::ResizeActive(position))
+            },
+            DispatchCmd::ShrinkActive { dx, dy } => {
+                let position = Position::Delta(-dx, -dy);
                 Ok(DispatchType::ResizeActive(position))
             },
             DispatchCmd::ResizeWindowPixel { params, window } => {

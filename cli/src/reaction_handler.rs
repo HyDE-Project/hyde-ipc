@@ -656,7 +656,7 @@ impl From<Dispatcher> for Dispatch {
             Dispatcher::FocusCurrentOrLast => Dispatch::FocusCurrentOrLast,
             Dispatcher::ForceRendererReload => Dispatch::ForceRendererReload,
             Dispatcher::Exit => Dispatch::Exit,
-            Dispatcher::ResizeActive(params) => Dispatch::ResizeActive { params },
+            Dispatcher::ResizeActive(params) => Dispatch::ResizeActiveLegacy { params },
             Dispatcher::ResizeWindowPixel(params, window) => {
                 Dispatch::ResizeWindowPixel { params, window }
             },
@@ -694,7 +694,16 @@ impl From<Dispatch> for Dispatcher {
             Dispatch::FocusCurrentOrLast => Dispatcher::FocusCurrentOrLast,
             Dispatch::ForceRendererReload => Dispatcher::ForceRendererReload,
             Dispatch::Exit => Dispatcher::Exit,
-            Dispatch::ResizeActive { params } => Dispatcher::ResizeActive(params),
+            Dispatch::ResizeActive { x, y } => {
+                Dispatcher::ResizeActive(ResizeCmd::Exact { width: x, height: y })
+            },
+            Dispatch::ResizeActiveLegacy { params } => Dispatcher::ResizeActive(params),
+            Dispatch::ExpandActive { dx, dy } => {
+                Dispatcher::ResizeActive(ResizeCmd::Delta { dx, dy })
+            },
+            Dispatch::ShrinkActive { dx, dy } => {
+                Dispatcher::ResizeActive(ResizeCmd::Delta { dx: -dx, dy: -dy })
+            },
             Dispatch::ResizeWindowPixel { params, window } => {
                 Dispatcher::ResizeWindowPixel(params, window)
             },
