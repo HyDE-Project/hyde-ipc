@@ -14,7 +14,9 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
     event_listener.add_active_window_changed_handler(move |data| {
         if should_log_event("window", &filter_clone) {
             println!("[WINDOW] Active window changed - {data:?}");
-            increment_count(&count_clone, max_events);
+            if increment_count(&count_clone, max_events) {
+                println!("Maximum event count ({}) reached. Press Ctrl+C to stop.", max_events);
+            }
         }
     });
 
@@ -23,7 +25,9 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
     event_listener.add_window_opened_handler(move |data| {
         if should_log_event("window", &filter_clone) {
             println!("[WINDOW] Window opened - {data:?}");
-            increment_count(&count_clone, max_events);
+            if increment_count(&count_clone, max_events) {
+                println!("Maximum event count ({}) reached. Press Ctrl+C to stop.", max_events);
+            }
         }
     });
 
@@ -32,7 +36,9 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
     event_listener.add_window_closed_handler(move |data| {
         if should_log_event("window", &filter_clone) {
             println!("[WINDOW] Window closed - {data:?}");
-            increment_count(&count_clone, max_events);
+            if increment_count(&count_clone, max_events) {
+                println!("Maximum event count ({}) reached. Press Ctrl+C to stop.", max_events);
+            }
         }
     });
 
@@ -44,7 +50,9 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
                 "[WINDOW] Window moved - workspace: {}, address: {}",
                 data.workspace_name, data.window_address
             );
-            increment_count(&count_clone, max_events);
+            if increment_count(&count_clone, max_events) {
+                println!("Maximum event count ({}) reached. Press Ctrl+C to stop.", max_events);
+            }
         }
     });
 
@@ -56,7 +64,9 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
                 "[FLOAT] Float state changed - address: {}, floating: {}",
                 data.address, data.floating
             );
-            increment_count(&count_clone, max_events);
+            if increment_count(&count_clone, max_events) {
+                println!("Maximum event count ({}) reached. Press Ctrl+C to stop.", max_events);
+            }
         }
     });
 
@@ -66,7 +76,9 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
         if should_log_event("fullscreen", &filter_clone) {
             let state_str = if state { "enabled" } else { "disabled" };
             println!("[FULLSCREEN] Fullscreen {state_str}");
-            increment_count(&count_clone, max_events);
+            if increment_count(&count_clone, max_events) {
+                println!("Maximum event count ({}) reached. Press Ctrl+C to stop.", max_events);
+            }
         }
     });
 
@@ -75,7 +87,9 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
     event_listener.add_workspace_changed_handler(move |id| {
         if should_log_event("workspace", &filter_clone) {
             println!("[WORKSPACE] Changed workspace - {id:?}");
-            increment_count(&count_clone, max_events);
+            if increment_count(&count_clone, max_events) {
+                println!("Maximum event count ({}) reached. Press Ctrl+C to stop.", max_events);
+            }
         }
     });
 
@@ -84,7 +98,9 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
     event_listener.add_workspace_added_handler(move |data| {
         if should_log_event("workspace", &filter_clone) {
             println!("[WORKSPACE] Workspace added - name: {}, id: {}", data.name, data.id);
-            increment_count(&count_clone, max_events);
+            if increment_count(&count_clone, max_events) {
+                println!("Maximum event count ({}) reached. Press Ctrl+C to stop.", max_events);
+            }
         }
     });
 
@@ -93,7 +109,9 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
     event_listener.add_workspace_deleted_handler(move |data| {
         if should_log_event("workspace", &filter_clone) {
             println!("[WORKSPACE] Workspace deleted - name: {}, id: {}", data.name, data.id);
-            increment_count(&count_clone, max_events);
+            if increment_count(&count_clone, max_events) {
+                println!("Maximum event count ({}) reached. Press Ctrl+C to stop.", max_events);
+            }
         }
     });
 
@@ -105,7 +123,9 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
                 "[MONITOR] Active monitor changed - monitor: {}, workspace: {:?}",
                 data.monitor_name, data.workspace_name
             );
-            increment_count(&count_clone, max_events);
+            if increment_count(&count_clone, max_events) {
+                println!("Maximum event count ({}) reached. Press Ctrl+C to stop.", max_events);
+            }
         }
     });
 
@@ -117,7 +137,9 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
                 "[LAYOUT] Layout changed - keyboard: {}, layout: {}",
                 data.keyboard_name, data.layout_name
             );
-            increment_count(&count_clone, max_events);
+            if increment_count(&count_clone, max_events) {
+                println!("Maximum event count ({}) reached. Press Ctrl+C to stop.", max_events);
+            }
         }
     });
 
@@ -130,7 +152,9 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
                 data.toggled,
                 data.window_addresses.len()
             );
-            increment_count(&count_clone, max_events);
+            if increment_count(&count_clone, max_events) {
+                println!("Maximum event count ({}) reached. Press Ctrl+C to stop.", max_events);
+            }
         }
     });
 
@@ -139,7 +163,9 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
     event_listener.add_window_moved_into_group_handler(move |addr| {
         if should_log_event("group", &filter_clone) {
             println!("[GROUP] Window moved into group - address: {addr}");
-            increment_count(&count_clone, max_events);
+            if increment_count(&count_clone, max_events) {
+                println!("Maximum event count ({}) reached. Press Ctrl+C to stop.", max_events);
+            }
         }
     });
 
@@ -148,7 +174,9 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
     event_listener.add_window_moved_out_of_group_handler(move |addr| {
         if should_log_event("group", &filter_clone) {
             println!("[GROUP] Window moved out of group - address: {addr}");
-            increment_count(&count_clone, max_events);
+            if increment_count(&count_clone, max_events) {
+                println!("Maximum event count ({}) reached. Press Ctrl+C to stop.", max_events);
+            }
         }
     });
 
@@ -157,7 +185,9 @@ pub fn listen(filter: Option<String>, max_events: usize) -> hyprland::Result<()>
     event_listener.add_config_reloaded_handler(move || {
         if should_log_event("config", &filter_clone) {
             println!("[CONFIG] Config reloaded");
-            increment_count(&count_clone, max_events);
+            if increment_count(&count_clone, max_events) {
+                println!("Maximum event count ({}) reached. Press Ctrl+C to stop.", max_events);
+            }
         }
     });
 
@@ -173,11 +203,11 @@ fn should_log_event(event_type: &str, filter: &Option<String>) -> bool {
     }
 }
 
-fn increment_count(count: &Arc<AtomicUsize>, max: usize) {
+fn increment_count(count: &Arc<AtomicUsize>, max: usize) -> bool {
     if max > 0 {
         let current = count.fetch_add(1, Ordering::SeqCst) + 1;
-        if current >= max {
-            std::process::exit(0);
-        }
+        current >= max
+    } else {
+        false
     }
 }

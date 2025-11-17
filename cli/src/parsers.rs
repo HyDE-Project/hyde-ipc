@@ -6,6 +6,13 @@ use hyprland::shared::Address;
 use phf::phf_map;
 use std::str::FromStr;
 
+/// Parses window identifiers from string format.
+///
+/// # Memory Leaks
+///
+/// Uses `Box::leak()` to satisfy hyprland API's 'static lifetime requirement.
+/// This is acceptable in CLI context where process lifetime is short.
+/// See dispatch.rs for detailed explanation.
 #[derive(Debug, Clone)]
 pub struct ParsedWindowIdentifier(pub WindowIdentifier<'static>);
 impl FromStr for ParsedWindowIdentifier {
@@ -32,6 +39,12 @@ impl FromStr for ParsedWindowIdentifier {
     }
 }
 
+/// Parses workspace identifiers from string format.
+///
+/// # Memory Leaks
+///
+/// Uses `Box::leak()` for workspace names to satisfy hyprland API constraints.
+/// Acceptable in CLI context. See dispatch.rs for details.
 #[derive(Debug, Clone)]
 pub struct ParsedWorkspaceIdentifier(pub WorkspaceIdentifierWithSpecial<'static>);
 impl FromStr for ParsedWorkspaceIdentifier {
@@ -88,6 +101,12 @@ impl FromStr for ParsedDirection {
     }
 }
 
+/// Parses window move targets from string format.
+///
+/// # Memory Leaks
+///
+/// Uses `Box::leak()` for monitor names to satisfy hyprland API constraints.
+/// Acceptable in CLI context. See dispatch.rs for details.
 #[derive(Debug, Clone)]
 pub struct ParsedWindowMove(pub WindowMove<'static>);
 impl FromStr for ParsedWindowMove {

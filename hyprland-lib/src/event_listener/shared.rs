@@ -2,6 +2,8 @@ use crate::shared::*;
 use std::fmt::Debug;
 use std::pin::Pin;
 
+type ParsedEventResult = crate::Result<Either<(ParsedEventType, Vec<String>), (String, String)>>;
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum ActiveWindowValue<T> {
     Queued(T), // aka Some(T)
@@ -74,7 +76,7 @@ pub(crate) trait HasExecutor {
     }
 }
 
-pub(crate) fn event_primer_noexec<'a>(
+pub(crate) fn event_primer_noexec(
     event: Event,
     abuf: &mut Vec<ActiveWindowState>,
 ) -> crate::Result<Vec<Event>> {
@@ -678,9 +680,7 @@ pub(crate) static EVENTS: phf::Map<&'static str, (usize, ParsedEventType)> = phf
 
 use either::Either;
 
-fn new_event_parser(
-    input: &str,
-) -> crate::Result<Either<(ParsedEventType, Vec<String>), (String, String)>> {
+fn new_event_parser(input: &str) -> ParsedEventResult {
     input
         .to_string()
         .split_once(">>")

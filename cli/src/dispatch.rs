@@ -7,6 +7,20 @@ use hyprland::dispatch::{Dispatch, DispatchType, Position};
 use std::convert::TryFrom;
 use std::str::FromStr;
 
+/// Converts dispatch commands to hyprland DispatchType.
+///
+/// # Memory Leaks
+///
+/// This implementation uses `Box::leak()` to satisfy the 'static lifetime requirement
+/// of the hyprland library's `DispatchType<'static>`. This is an API constraint that
+/// cannot be avoided without modifying the upstream hyprland crate.
+///
+/// In the context of a CLI application with short-lived processes, these leaks are
+/// acceptable as the memory is reclaimed when the process exits. Each command execution
+/// leaks a small amount of memory for string data.
+///
+/// Future improvement: Consider contributing to hyprland crate to support owned types
+/// or non-'static lifetimes.
 impl TryFrom<DispatchCmd> for DispatchType<'static> {
     type Error = String;
 
@@ -124,15 +138,21 @@ pub fn handle_dispatch(command: DispatchCmd, is_async: bool) {
     match DispatchType::try_from(command) {
         Ok(dispatch_type) => {
             if is_async {
-                let rt = tokio::runtime::Builder::new_current_thread()
+                match tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
-                    .unwrap();
-                rt.block_on(async {
-                    if let Err(e) = Dispatch::call_async(dispatch_type).await {
-                        eprintln!("Error: {e}");
-                    }
-                });
+                {
+                    Ok(rt) => {
+                        rt.block_on(async {
+                            if let Err(e) = Dispatch::call_async(dispatch_type).await {
+                                eprintln!("Error: {e}");
+                            }
+                        });
+                    },
+                    Err(e) => {
+                        eprintln!("Error creating async runtime: {e}");
+                    },
+                }
             } else if let Err(e) = Dispatch::call(dispatch_type) {
                 eprintln!("Error: {e}");
             }

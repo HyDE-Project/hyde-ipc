@@ -1,32 +1,37 @@
 pub fn sync_keyword(get: bool, set: bool, keyword: String, value: Option<String>) {
     if get {
-        println!(
-            "{} value is {}",
-            keyword,
-            hyprland::keyword::Keyword::get(&keyword)
-                .unwrap()
-                .value
-        );
+        match hyprland::keyword::Keyword::get(&keyword) {
+            Ok(result) => println!("{} value is {}", keyword, result.value),
+            Err(e) => eprintln!("Error getting keyword '{}': {}", keyword, e),
+        }
     } else if set {
-        let value = value.as_ref().unwrap();
-        hyprland::keyword::Keyword::set(keyword, value.clone()).unwrap();
+        match value {
+            Some(ref val) => {
+                if let Err(e) = hyprland::keyword::Keyword::set(keyword.clone(), val.clone()) {
+                    eprintln!("Error setting keyword '{}': {}", keyword, e);
+                }
+            },
+            None => eprintln!("Error: value required for set operation"),
+        }
     }
 }
 
 pub async fn async_keyword(get: bool, set: bool, keyword: String, value: Option<String>) {
     if get {
-        println!(
-            "{} value is {}",
-            keyword,
-            hyprland::keyword::Keyword::get_async(&keyword)
-                .await
-                .unwrap()
-                .value
-        );
+        match hyprland::keyword::Keyword::get_async(&keyword).await {
+            Ok(result) => println!("{} value is {}", keyword, result.value),
+            Err(e) => eprintln!("Error getting keyword '{}': {}", keyword, e),
+        }
     } else if set {
-        let value = value.as_ref().unwrap();
-        hyprland::keyword::Keyword::set_async(keyword, value.clone())
-            .await
-            .unwrap();
+        match value {
+            Some(ref val) => {
+                if let Err(e) =
+                    hyprland::keyword::Keyword::set_async(keyword.clone(), val.clone()).await
+                {
+                    eprintln!("Error setting keyword '{}': {}", keyword, e);
+                }
+            },
+            None => eprintln!("Error: value required for set operation"),
+        }
     }
 }
