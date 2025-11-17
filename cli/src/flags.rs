@@ -132,6 +132,13 @@ pub enum Commands {
         config_path: String,
     },
 
+    /// Validate a config file without starting the service.
+    Validate {
+        /// Path to the config file to validate.
+        #[arg(short = 'c', long)]
+        config_path: String,
+    },
+
     /// Query Hyprland for information.
     Query(QueryCommand),
 }
@@ -338,11 +345,17 @@ pub enum Dispatch {
         #[arg(allow_hyphen_values = true)]
         x: i16,
         /// Exact height (Y). Defaults to 0 if omitted. Negative allowed.
-        #[arg(default_value_t = 0, allow_hyphen_values = true)]
+        #[arg(
+            default_value_t = 0,
+            allow_hyphen_values = true
+        )]
         y: i16,
     },
     /// Legacy form kept for internal use (hidden): resize-active-legacy exact|delta ...
-    #[command(name = "resize-active-legacy", hide = true)]
+    #[command(
+        name = "resize-active-legacy",
+        hide = true
+    )]
     ResizeActiveLegacy {
         #[command(subcommand)]
         params: ResizeCmd,

@@ -111,6 +111,11 @@ pub fn main() {
             }
         },
         Commands::Global { config_path } => {
+            // Validate config before installing it globally
+            if let Err(e) = react_config::ReactConfig::validate_file(&config_path) {
+                eprintln!("Config validation failed: {e}");
+                process::exit(1);
+            }
             let dest_path = match service::get_config_path() {
                 Ok(path) => path,
                 Err(e) => {
@@ -140,9 +145,26 @@ pub fn main() {
 
             println!("Config file copied to {}", dest_path.display());
 
+            // Validate the destination content as well, to be extra safe
+            if let Err(e) = react_config::ReactConfig::validate_file(&dest_path) {
+                eprintln!("Config validation failed after copy ({}): {}", dest_path.display(), e);
+                process::exit(1);
+            }
+
             if let Err(e) = service::restart() {
                 eprintln!("Error restarting service: {e}");
                 process::exit(1);
+            }
+        },
+        Commands::Validate { config_path } => {
+            match react_config::ReactConfig::validate_file(&config_path) {
+                Ok(()) => {
+                    println!("Config validation successful: {}", config_path);
+                },
+                Err(e) => {
+                    eprintln!("Config validation failed: {e}");
+                    process::exit(1);
+                },
             }
         },
         Commands::Query(query_command) => {
