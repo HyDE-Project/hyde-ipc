@@ -27,9 +27,10 @@ impl ReactConfig {
         toml::from_str(&content).map_err(|e| format!("Failed to parse TOML config file: {e}"))
     }
 
-    /// Validate the loaded configuration by checking each reaction and its dispatchers.
-    /// This performs deeper argument validation by converting into CLI dispatch types
-    /// and then attempting to translate them into Hyprland dispatch types.
+    // bad design ig but makes :79 design choice possible.
+    // validate the loaded configuration by checking each reaction and its dispatchers.
+    // deeper argument validation by converting into CLI dispatch types
+    // and then to to Hyprland dispatch types.
     pub fn validate(&self) -> Result<(), String> {
         for (ri, rc) in self.reactions_config.iter().enumerate() {
             let reaction = &rc.reaction;
@@ -38,10 +39,9 @@ impl ReactConfig {
             }
 
             for (di, dispatcher) in reaction.dispatchers.iter().enumerate() {
-                // Convert reaction dispatcher into CLI dispatch enum
                 let cli_dispatch: flags::Dispatch = dispatcher.clone().into();
 
-                // Attempt to convert into Hyprland dispatch type (validates arguments)
+                // convert into hypr dispatch type (invalid fails here)
                 if let Err(e) = DispatchType::try_from(cli_dispatch) {
                     return Err(format!(
                         "Invalid dispatcher at reaction {} (#{}): {}",
@@ -55,7 +55,6 @@ impl ReactConfig {
         Ok(())
     }
 
-    /// Load and validate a config from a file path.
     pub fn validate_file<P: AsRef<Path>>(path: P) -> Result<(), String> {
         let cfg = Self::from_file(&path)?;
         cfg.validate()
@@ -73,12 +72,8 @@ impl ReactConfig {
     }
 }
 
-/// Validate a config path, which can be either a single file or a directory of `.toml` files.
-///
-/// - If `path` is a file, this is equivalent to `ReactConfig::validate_file`.
-/// - If `path` is a directory, all `*.toml` files are validated individually. Any invalid file
-///   is reported, and the function returns an error if at least one file is invalid or if no
-///   `.toml` files are found.
+// NOTE: maybe err on reaction and not file !?
+//
 pub fn validate_path<P: AsRef<Path>>(path: P) -> Result<(), String> {
     let path = path.as_ref();
 
@@ -100,7 +95,11 @@ pub fn validate_path<P: AsRef<Path>>(path: P) -> Result<(), String> {
             };
 
             let file_path = entry.path();
-            if file_path.extension().and_then(|s| s.to_str()) != Some("toml") {
+            if file_path
+                .extension()
+                .and_then(|s| s.to_str())
+                != Some("toml")
+            {
                 continue;
             }
 
@@ -113,10 +112,7 @@ pub fn validate_path<P: AsRef<Path>>(path: P) -> Result<(), String> {
         }
 
         if checked_files == 0 {
-            return Err(format!(
-                "No .toml config files found in directory {}",
-                path.display()
-            ));
+            return Err(format!("No .toml config files found in directory {}", path.display()));
         }
 
         if had_errors {
@@ -151,7 +147,11 @@ pub fn run_from_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
             };
 
             let file_path = entry.path();
-            if file_path.extension().and_then(|s| s.to_str()) != Some("toml") {
+            if file_path
+                .extension()
+                .and_then(|s| s.to_str())
+                != Some("toml")
+            {
                 continue;
             }
 
@@ -173,11 +173,7 @@ pub fn run_from_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
             let reactions = config.reactions_config;
             let count = reactions.len();
             total_reactions += count;
-            println!(
-                "    + Loaded {} reaction(s) from {}",
-                count,
-                file_path.display()
-            );
+            println!("    + Loaded {} reaction(s) from {}", count, file_path.display());
 
             for rc in reactions {
                 manager.add_reaction(Reaction {
@@ -197,7 +193,7 @@ pub fn run_from_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
 
     println!("Loading reactions from {}", path.display());
     let config = ReactConfig::from_file(path)?;
-    // Optional: perform validation before starting the manager to fail fast on bad args
+    // FIX: validate before starting the manager to fail fast on bad args
     config.validate()?;
     println!("Loaded {} reactions", config.reactions_config.len());
     let manager = config.into_manager();

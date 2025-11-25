@@ -499,7 +499,6 @@ fn is_window_match(
     }
 }
 
-/// A dispatcher to be executed as part of a reaction chain.
 #[derive(Debug, Clone)]
 pub enum Dispatcher {
     Exec(Vec<String>),
@@ -730,10 +729,7 @@ fn run_exec_wait_and_tail(
         .map_err(|e| format!("Failed to wait on ExecWait shell command '{cmd}': {e}"))?;
 
     if !status.success() {
-        eprintln!(
-            "ExecWait shell command '{cmd}' exited with status: {:?}",
-            status.code()
-        );
+        eprintln!("ExecWait shell command '{cmd}' exited with status: {:?}", status.code());
     }
 
     if !tail.is_empty() {
