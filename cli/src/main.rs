@@ -13,13 +13,10 @@ mod react_config;
 mod reaction_handler;
 
 use clap::{CommandFactory, Parser};
-use flags::{Cli, Commands, DispatchCommand};
+use flags::{Cli, Commands, DispatchCommand, SetupAction};
 use hyde_ipc_lib::service;
 use std::process;
 
-/// Main entry point for the hyde-ipc CLI.
-///
-/// Parses command-line arguments and dispatches to the appropriate subcommand handler.
 pub fn main() {
     let cli = Cli::parse();
 
@@ -86,23 +83,14 @@ pub fn main() {
             }
         },
         Commands::Setup(setup_command) => {
-            let result = if setup_command.install {
-                service::install()
-            } else if setup_command.uninstall {
-                service::uninstall()
-            } else if setup_command.start {
-                service::start()
-            } else if setup_command.kill {
-                service::stop()
-            } else if setup_command.restart {
-                service::restart()
-            } else if setup_command.check {
-                service::status()
-            } else if setup_command.watch {
-                service::watch_logs()
-            } else {
-                // WARN: this should not be reached due to the ArgGroup
-                Ok(())
+            let result = match setup_command.action {
+                SetupAction::Install => service::install(),
+                SetupAction::Uninstall => service::uninstall(),
+                SetupAction::Start => service::start(),
+                SetupAction::Kill => service::stop(),
+                SetupAction::Restart => service::restart(),
+                SetupAction::Check => service::status(),
+                SetupAction::Watch => service::watch_logs(),
             };
 
             if let Err(e) = result {
