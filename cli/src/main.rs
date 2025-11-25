@@ -15,7 +15,7 @@ mod reaction_handler;
 use clap::{CommandFactory, Parser};
 use flags::{Cli, Commands, DispatchCommand};
 use hyde_ipc_lib::service;
-use std::{fs, process};
+use std::process;
 
 /// Main entry point for the hyde-ipc CLI.
 ///
@@ -108,15 +108,12 @@ pub fn main() {
             if let Err(e) = result {
                 eprintln!("Error: {e}");
                 process::exit(1);
+            } else {
+                println!("Ok!");
             }
         },
-        Commands::Global { config_path } => {
-            // Validate config before installing it globally
-            if let Err(e) = react_config::ReactConfig::validate_file(&config_path) {
-                eprintln!("Config validation failed: {e}");
-                process::exit(1);
-            }
-            let dest_path = match service::get_config_path() {
+        Commands::Reload => {
+            let config_dir = match service::get_config_path() {
                 Ok(path) => path,
                 Err(e) => {
                     eprintln!("Error getting config path: {e}");
@@ -124,37 +121,17 @@ pub fn main() {
                 },
             };
 
-            if let Some(parent) = dest_path.parent() {
-                if !parent.exists() {
-                    if let Err(e) = fs::create_dir_all(parent) {
-                        eprintln!("Error creating config directory: {e}");
-                        process::exit(1);
-                    }
-                }
-            }
-
-            if let Err(e) = fs::copy(&config_path, &dest_path) {
-                eprintln!(
-                    "Error copying config file from {} to {}: {}",
-                    config_path,
-                    dest_path.display(),
-                    e
-                );
-                process::exit(1);
-            }
-
-            println!("Config file copied to {}", dest_path.display());
-
-            // Validate the destination content as well, to be extra safe
-            if let Err(e) = react_config::ReactConfig::validate_file(&dest_path) {
-                eprintln!("Config validation failed after copy ({}): {}", dest_path.display(), e);
+            if let Err(e) = react_config::validate_path(&config_dir) {
+                eprintln!("Config validation failed: {e}");
                 process::exit(1);
             }
 
             if let Err(e) = service::restart() {
-                eprintln!("Error restarting service: {e}");
+                eprintln!("Error: {e}");
                 process::exit(1);
             }
+
+            println!("Ok!");
         },
         Commands::Validate { config_path } => {
             match react_config::ReactConfig::validate_file(&config_path) {

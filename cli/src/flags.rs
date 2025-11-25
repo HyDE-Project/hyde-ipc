@@ -125,12 +125,8 @@ pub enum Commands {
     /// Manage the hyde-ipc user service.
     Setup(SetupCommand),
 
-    /// Load a config file for global reactions.
-    Global {
-        /// Path to the config file to load.
-        #[arg(short = 'c', long)]
-        config_path: String,
-    },
+    /// Validate configs and restart the hyde-ipc user service.
+    Reload,
 
     /// Validate a config file without starting the service.
     Validate {

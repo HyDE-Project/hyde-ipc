@@ -73,8 +73,129 @@ impl ReactConfig {
     }
 }
 
+/// Validate a config path, which can be either a single file or a directory of `.toml` files.
+///
+/// - If `path` is a file, this is equivalent to `ReactConfig::validate_file`.
+/// - If `path` is a directory, all `*.toml` files are validated individually. Any invalid file
+///   is reported, and the function returns an error if at least one file is invalid or if no
+///   `.toml` files are found.
+pub fn validate_path<P: AsRef<Path>>(path: P) -> Result<(), String> {
+    let path = path.as_ref();
+
+    if path.is_dir() {
+        let entries = fs::read_dir(path)
+            .map_err(|e| format!("Failed to read config directory {}: {e}", path.display()))?;
+
+        let mut had_errors = false;
+        let mut checked_files = 0usize;
+
+        for entry in entries {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(e) => {
+                    eprintln!("Failed to read entry in {}: {e}; skipping", path.display());
+                    had_errors = true;
+                    continue;
+                },
+            };
+
+            let file_path = entry.path();
+            if file_path.extension().and_then(|s| s.to_str()) != Some("toml") {
+                continue;
+            }
+
+            checked_files += 1;
+
+            if let Err(e) = ReactConfig::validate_file(&file_path) {
+                had_errors = true;
+                eprintln!("  ! {}: {}", file_path.display(), e);
+            }
+        }
+
+        if checked_files == 0 {
+            return Err(format!(
+                "No .toml config files found in directory {}",
+                path.display()
+            ));
+        }
+
+        if had_errors {
+            Err("One or more config files in the directory are invalid".to_string())
+        } else {
+            Ok(())
+        }
+    } else {
+        ReactConfig::validate_file(path)
+    }
+}
+
 pub fn run_from_config<P: AsRef<Path>>(path: P) -> Result<(), String> {
-    println!("Loading reactions from {}", path.as_ref().display());
+    let path = path.as_ref();
+
+    if path.is_dir() {
+        println!("Loading reactions from directory {}", path.display());
+
+        let mut manager = ReactionManager::new();
+        let mut total_reactions = 0usize;
+
+        let entries = fs::read_dir(path)
+            .map_err(|e| format!("Failed to read config directory {}: {e}", path.display()))?;
+
+        for entry in entries {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(e) => {
+                    eprintln!("Failed to read entry in {}: {e}; skipping", path.display());
+                    continue;
+                },
+            };
+
+            let file_path = entry.path();
+            if file_path.extension().and_then(|s| s.to_str()) != Some("toml") {
+                continue;
+            }
+
+            println!("  - Loading config file {}", file_path.display());
+
+            let config = match ReactConfig::from_file(&file_path) {
+                Ok(cfg) => cfg,
+                Err(e) => {
+                    eprintln!("    ! Skipping {}: {}", file_path.display(), e);
+                    continue;
+                },
+            };
+
+            if let Err(e) = config.validate() {
+                eprintln!("    ! Skipping {}: {}", file_path.display(), e);
+                continue;
+            }
+
+            let reactions = config.reactions_config;
+            let count = reactions.len();
+            total_reactions += count;
+            println!(
+                "    + Loaded {} reaction(s) from {}",
+                count,
+                file_path.display()
+            );
+
+            for rc in reactions {
+                manager.add_reaction(Reaction {
+                    counter: Arc::new(AtomicUsize::new(0)),
+                    ..rc.reaction
+                });
+            }
+        }
+
+        if total_reactions == 0 {
+            return Err(format!("No valid reactions found in directory {}", path.display()));
+        }
+
+        println!("Loaded {} reactions from directory {}", total_reactions, path.display());
+        return manager.start();
+    }
+
+    println!("Loading reactions from {}", path.display());
     let config = ReactConfig::from_file(path)?;
     // Optional: perform validation before starting the manager to fail fast on bad args
     config.validate()?;
