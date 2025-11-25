@@ -6,6 +6,7 @@ use hyprland::event_listener::EventListener;
 use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 use std::fmt;
+use std::process::Command;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -260,10 +261,12 @@ impl Reaction {
             self.dispatchers.len()
         );
 
-        for (index, dispatcher) in self.dispatchers.iter().enumerate() {
-            println!("  - Dispatcher {}/{}: {:?}", index + 1, self.dispatchers.len(), dispatcher);
-            handle_dispatch(dispatcher.clone().into(), false);
-        }
+        // handles any ExecWait by
+        // spawning background workers that wait hang on the dispatcher
+        // to finish and then continue executing the remaining dispatchers.
+        let total = self.dispatchers.len();
+        run_dispatch_sequence(self.dispatchers.clone(), 0, total);
+
         Ok(true)
     }
 }
@@ -283,6 +286,42 @@ where
     .transpose()
 }
 
+fn run_dispatch_sequence(dispatchers: Vec<Dispatcher>, start_index: usize, total: usize) {
+    let len = dispatchers.len();
+    let mut local_index = 0;
+
+    while local_index < len {
+        let dispatcher = dispatchers[local_index].clone();
+        let global_pos = start_index + local_index;
+        println!("  - Dispatcher {}/{}: {:?}", global_pos + 1, total, dispatcher);
+
+        match dispatcher {
+            Dispatcher::ExecWait(command) => {
+                let tail = if local_index + 1 < len {
+                    dispatchers[local_index + 1..].to_vec()
+                } else {
+                    Vec::new()
+                };
+
+                let tail_start_index = global_pos + 1;
+
+                std::thread::spawn(move || {
+                    if let Err(e) = run_exec_wait_and_tail(command, tail, tail_start_index, total) {
+                        eprintln!("Error executing ExecWait continuation: {e}");
+                    }
+                });
+
+                // stop executing in this sequence; the tail will be
+                // continued in the spawned worker once the command exits.
+                return;
+            },
+            other => {
+                handle_dispatch(other.into(), false);
+                local_index += 1;
+            },
+        }
+    }
+}
 #[derive(Default, Debug)]
 pub struct ReactionManager {
     reactions: Vec<Arc<Reaction>>,
@@ -464,6 +503,7 @@ fn is_window_match(
 #[derive(Debug, Clone)]
 pub enum Dispatcher {
     Exec(Vec<String>),
+    ExecWait(Vec<String>),
     KillActiveWindow,
     ToggleFloating(Option<WindowId>),
     ToggleSplit,
@@ -553,6 +593,7 @@ impl<'de> Deserialize<'de> for Dispatcher {
             .as_str()
         {
             "exec" => Ok(Dispatcher::Exec(args.clone())),
+            "execwait" => Ok(Dispatcher::ExecWait(args.clone())),
             "killactivewindow" => Ok(Dispatcher::KillActiveWindow),
             "togglefloating" => Ok(Dispatcher::ToggleFloating(
                 args.first()
@@ -623,7 +664,7 @@ impl<'de> Deserialize<'de> for Dispatcher {
 impl From<Dispatcher> for Dispatch {
     fn from(dispatcher: Dispatcher) -> Self {
         match dispatcher {
-            Dispatcher::Exec(command) => Dispatch::Exec { command },
+            Dispatcher::Exec(command) | Dispatcher::ExecWait(command) => Dispatch::Exec { command },
             Dispatcher::KillActiveWindow => Dispatch::KillActiveWindow,
             Dispatcher::ToggleFloating(window) => {
                 Dispatch::ToggleFloating { window: window.unwrap_or_default() }
@@ -662,6 +703,48 @@ impl From<Dispatcher> for Dispatch {
             },
         }
     }
+}
+
+fn run_exec_wait_and_tail(
+    command: Vec<String>,
+    tail: Vec<Dispatcher>,
+    tail_start_index: usize,
+    total: usize,
+) -> Result<(), String> {
+    if command.is_empty() {
+        return Err("ExecWait requires at least one argument (program)".to_string());
+    }
+
+    // Join arguments into a single shell command string, mirroring Hyprland's `exec` behavior.
+    let cmd = command.join(" ");
+    println!("Starting ExecWait shell command: {}", cmd);
+
+    let mut child = Command::new("sh")
+        .arg("-c")
+        .arg(&cmd)
+        .spawn()
+        .map_err(|e| format!("Failed to spawn ExecWait shell command '{cmd}': {e}"))?;
+
+    let status = child
+        .wait()
+        .map_err(|e| format!("Failed to wait on ExecWait shell command '{cmd}': {e}"))?;
+
+    if !status.success() {
+        eprintln!(
+            "ExecWait shell command '{cmd}' exited with status: {:?}",
+            status.code()
+        );
+    }
+
+    if !tail.is_empty() {
+        println!("ExecWait command finished, executing {} chained dispatcher(s)", tail.len());
+        // Continue executing the remaining dispatchers with full ExecWait
+        // semantics (i.e., additional ExecWait entries will also create
+        // their own wait phases).
+        run_dispatch_sequence(tail, tail_start_index, total);
+    }
+
+    Ok(())
 }
 
 impl From<Dispatch> for Dispatcher {
