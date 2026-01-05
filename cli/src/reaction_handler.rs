@@ -78,7 +78,6 @@ pub enum Dispatcher {
     ResizeWindowPixel(ResizeCmd, WindowId),
 }
 
-
 impl fmt::Display for WorkspaceEventType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -532,8 +531,6 @@ fn is_window_match(
     }
 }
 
-
-
 impl<'de> Deserialize<'de> for Dispatcher {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -719,7 +716,7 @@ fn run_exec_wait_and_tail(
 
     // Join arguments into a single shell command string, mirroring Hyprland's `exec` behavior.
     let cmd = command.join(" ");
-    println!("Starting ExecWait shell command: {}", cmd);
+    println!("Starting ExecWait shell command: {cmd}");
 
     let mut child = Command::new("sh")
         .arg("-c")

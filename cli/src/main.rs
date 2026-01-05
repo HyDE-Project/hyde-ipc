@@ -64,7 +64,15 @@ impl Commands {
                     process::exit(1);
                 }
             },
-            Commands::React { config, inline: _, event, subtype, filter, dispatch, max_reactions } => {
+            Commands::React {
+                config,
+                inline: _,
+                event,
+                subtype,
+                filter,
+                dispatch,
+                max_reactions,
+            } => {
                 if let Some(config_path) = config {
                     if let Err(e) = react_config::run_from_config(&config_path) {
                         eprintln!("Error running from config: {e}");
@@ -132,7 +140,7 @@ impl Commands {
             Commands::Validate { config_path } => {
                 match react_config::ReactConfig::validate_file(&config_path) {
                     Ok(()) => {
-                        println!("Config validation successful: {}", config_path);
+                        println!("Config validation successful: {config_path}");
                     },
                     Err(e) => {
                         eprintln!("Config validation failed: {e}");

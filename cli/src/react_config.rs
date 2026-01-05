@@ -35,7 +35,7 @@ impl ReactConfig {
         for (ri, rc) in self.reactions_config.iter().enumerate() {
             let reaction = &rc.reaction;
             if reaction.dispatchers.is_empty() {
-                return Err(format!("Reaction at index {} has no dispatchers defined", ri));
+                return Err(format!("Reaction at index {ri} has no dispatchers defined"));
             }
 
             for (di, dispatcher) in reaction.dispatchers.iter().enumerate() {

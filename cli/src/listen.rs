@@ -43,6 +43,7 @@ impl ListenContext {
         let ctx = self.handler_ctx();
         f(ctx, listener);
     }
+
     fn register_handlers(&self, listener: &mut EventListener) {
         self.with_handler(listener, |ctx, listener| {
             listener.add_active_window_changed_handler(move |data| {
@@ -118,7 +119,10 @@ impl ListenContext {
         self.with_handler(listener, |ctx, listener| {
             listener.add_workspace_deleted_handler(move |data| {
                 log_event("workspace", &ctx.filter, &ctx.count, ctx.max_events, || {
-                    println!("[WORKSPACE] Workspace deleted - name: {}, id: {}", data.name, data.id);
+                    println!(
+                        "[WORKSPACE] Workspace deleted - name: {}, id: {}",
+                        data.name, data.id
+                    );
                 });
             });
         });
@@ -192,8 +196,13 @@ fn should_log_event(event_type: &str, filter: &Option<String>) -> bool {
     }
 }
 
-fn log_event<F>(event_type: &str, filter: &Option<String>, count: &Arc<AtomicUsize>, max: usize, f: F)
-where
+fn log_event<F>(
+    event_type: &str,
+    filter: &Option<String>,
+    count: &Arc<AtomicUsize>,
+    max: usize,
+    f: F,
+) where
     F: FnOnce(),
 {
     if should_log_event(event_type, filter) {
