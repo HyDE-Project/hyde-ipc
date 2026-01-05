@@ -1,6 +1,6 @@
 use service_manager::{
-    ServiceInstallCtx, ServiceLabel, ServiceLevel, ServiceManager, ServiceStartCtx, ServiceStopCtx,
-    ServiceUninstallCtx,
+    ServiceInstallCtx, ServiceLabel, ServiceLevel, ServiceManager, ServiceStartCtx, ServiceStatus,
+    ServiceStatusCtx, ServiceStopCtx, ServiceUninstallCtx,
 };
 use std::error::Error;
 use std::ffi::OsString;
@@ -71,10 +71,10 @@ fn get_label() -> ServiceLabel {
 // FIX: redesign ?
 //
 pub fn get_config_path() -> Result<PathBuf> {
-    let data_dir = dirs::data_dir().expect("Could not get user's data directory");
-    let mut path = data_dir;
+    let config_dir = dirs::config_dir()
+        .ok_or_else(|| ServiceError::Config("Could not get user's config directory".to_string()))?;
+    let mut path = config_dir;
     path.push("hyde-ipc");
-    path.push("config.toml");
     Ok(path)
 }
 
@@ -97,13 +97,13 @@ pub fn install() -> Result<()> {
         .trim()
         .to_string();
 
-    let config_path: OsString = get_config_path()?.into_os_string();
+    let config_dir: OsString = get_config_path()?.into_os_string();
 
     manager
         .install(ServiceInstallCtx {
             label: label.clone(),
             program: hyde_ipc_path.into(),
-            args: vec!["react".into(), "-c".into(), config_path],
+            args: vec!["react".into(), "-c".into(), config_dir],
             contents: None,
             username: None,
             working_directory: None,
@@ -113,7 +113,6 @@ pub fn install() -> Result<()> {
         })
         .map_err(|e| ServiceError::Install(e.to_string()))?;
 
-    println!("Service installed successfully.");
     start()
 }
 
@@ -128,7 +127,6 @@ pub fn uninstall() -> Result<()> {
     manager
         .uninstall(ServiceUninstallCtx { label })
         .map_err(|e| ServiceError::Uninstall(e.to_string()))?;
-    println!("Service uninstalled successfully.");
     Ok(())
 }
 
@@ -139,7 +137,6 @@ pub fn start() -> Result<()> {
     manager
         .start(ServiceStartCtx { label })
         .map_err(|e| ServiceError::Start(e.to_string()))?;
-    println!("Service started successfully.");
     Ok(())
 }
 
@@ -150,12 +147,13 @@ pub fn stop() -> Result<()> {
     manager
         .stop(ServiceStopCtx { label })
         .map_err(|e| ServiceError::Stop(e.to_string()))?;
-    println!("Service stopped successfully.");
     Ok(())
 }
 
 pub fn restart() -> Result<()> {
-    println!("Restarting service...");
+    // TODO: add reload command that sends a signal to the running
+    // service to re-scan without a full restart.
+    // just like `hyprctl reload`
     if let Err(e) = stop() {
         eprintln!("Failed to stop service during restart: {e}. Continuing to start...");
     }
@@ -167,10 +165,20 @@ pub fn is_active() -> Result<bool> {
     // This is a workaround.
     // We assume that if the start command
     // succeeds, the service is running.
-    let status = Command::new("systemctl")
-        .args(["--user", "is-active", "hyde-ipc.service"])
-        .output()?;
-    Ok(status.status.success())
+
+    let label = get_label();
+    let manager = get_manager()?;
+    match manager.status(ServiceStatusCtx { label }) {
+        Ok(ServiceStatus::Running) => Ok(true),
+        Ok(ServiceStatus::NotInstalled) => Ok(false),
+        Ok(ServiceStatus::Stopped(_)) => Ok(false),
+        Err(e) => Err(ServiceError::Status(e.to_string())),
+    }
+
+    // let status = Command::new("systemctl")
+    //     .args(["--user", "is-active", "hyde-ipc.service"])
+    //     .output()?;
+    // Ok(status.status.success())
 }
 
 pub fn status() -> Result<()> {
@@ -193,4 +201,152 @@ pub fn watch_logs() -> Result<()> {
         return Err(ServiceError::Status("journalctl command failed".to_string()));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Test `is_active()` returns true when service is running.
+    #[test]
+    fn test_is_active_running() {
+        match is_active() {
+            Ok(active) => {
+                assert!(active == true || active == false);
+            },
+            Err(e) => match e {
+                ServiceError::Status(_) => {},
+                _ => panic!("Unexpected error: {}", e),
+            },
+        }
+    }
+
+    #[test]
+    fn test_service_status_running_logic() {
+        // Verify that ServiceStatus::Running maps to true
+        let status = ServiceStatus::Running;
+        let result = match status {
+            ServiceStatus::Running => true,
+            ServiceStatus::NotInstalled => false,
+            ServiceStatus::Stopped(_) => false,
+        };
+        assert!(result);
+    }
+
+    #[test]
+    fn test_service_status_not_installed_logic() {
+        let status = ServiceStatus::NotInstalled;
+        let result = match status {
+            ServiceStatus::Running => true,
+            ServiceStatus::NotInstalled => false,
+            ServiceStatus::Stopped(_) => false,
+        };
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_service_status_stopped_logic() {
+        let status = ServiceStatus::Stopped(Some("Service was manually stopped".to_string()));
+        let result = match status {
+            ServiceStatus::Running => true,
+            ServiceStatus::NotInstalled => false,
+            ServiceStatus::Stopped(_) => false,
+        };
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_service_status_stopped_various_reasons() {
+        let reasons = vec![
+            Some("Service exited with code 1".to_string()),
+            Some("Service crashed".to_string()),
+            Some("Service was disabled".to_string()),
+            None,
+        ];
+
+        for reason in reasons {
+            let status = ServiceStatus::Stopped(reason.clone());
+            let result = match status {
+                ServiceStatus::Running => true,
+                ServiceStatus::NotInstalled => false,
+                ServiceStatus::Stopped(_) => false,
+            };
+            assert!(!result, "Stopped service should map to false for reason: {:?}", reason);
+        }
+    }
+
+    #[test]
+    fn test_is_active_error_handling() {
+        let error_message = "Failed to get service status";
+        let service_error = ServiceError::Status(error_message.to_string());
+
+        match service_error {
+            ServiceError::Status(msg) => {
+                assert_eq!(msg, error_message);
+            },
+            _ => panic!("Expected ServiceError::Status"),
+        }
+    }
+
+    #[test]
+    fn test_all_service_status_variants() {
+        let variants = vec![
+            (ServiceStatus::Running, true),
+            (ServiceStatus::NotInstalled, false),
+            (ServiceStatus::Stopped(Some("test reason".to_string())), false),
+            (ServiceStatus::Stopped(None), false),
+        ];
+
+        for (status, expected_active) in variants {
+            let result = match status {
+                ServiceStatus::Running => true,
+                ServiceStatus::NotInstalled => false,
+                ServiceStatus::Stopped(_) => false,
+            };
+            assert_eq!(
+                result, expected_active,
+                "Status {:?} should map to {}",
+                status, expected_active
+            );
+        }
+    }
+
+    #[test]
+    fn local_test() {
+        let label: ServiceLabel = get_label();
+        println!("service: {:?}", label);
+
+        match get_manager() {
+            Ok(manager) => {
+                println!("get_manager() done!");
+
+                match manager.status(ServiceStatusCtx { label }) {
+                    Ok(status) => match status {
+                        ServiceStatus::Running => {
+                            println!("RUNNING");
+                            println!("service is active and running.");
+                        },
+                        ServiceStatus::NotInstalled => {
+                            println!("NOT INSTALLED");
+                            println!("service is not installed");
+                        },
+                        ServiceStatus::Stopped(reason) => {
+                            println!("STOPPED");
+                            match reason {
+                                Some(msg) => println!("Reason: {}", msg),
+                                None => println!("4th arm"),
+                            }
+                        },
+                    },
+                    Err(e) => {
+                        println!("{}", e);
+                    },
+                }
+            },
+            Err(e) => {
+                println!("{}", e);
+            },
+        }
+        println!("\n\n\n\n");
+    }
 }

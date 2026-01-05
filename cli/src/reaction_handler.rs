@@ -46,6 +46,39 @@ pub enum WorkspaceEventType {
     Deleted,
 }
 
+#[derive(Debug, Clone)]
+pub enum Dispatcher {
+    Exec(Vec<String>),
+    ExecWait(Vec<String>),
+    KillActiveWindow,
+    ToggleFloating(Option<WindowId>),
+    ToggleSplit,
+    ToggleOpaque,
+    MoveCursorToCorner(String),
+    MoveCursor(i64, i64),
+    ToggleFullscreen(Option<String>),
+    MoveToWorkspace(String),
+    MoveToWorkspaceSilent(String, Option<WindowId>),
+    Workspace(String),
+    CycleWindow(Option<String>),
+    MoveFocus(String),
+    SwapWindow(String),
+    FocusWindow(WindowId),
+    MoveWindow(String),
+    ToggleFakeFullscreen,
+    TogglePseudo,
+    TogglePin,
+    CenterWindow,
+    BringActiveToTop,
+    FocusUrgentOrLast,
+    FocusCurrentOrLast,
+    ForceRendererReload,
+    Exit,
+    ResizeActive(ResizeCmd),
+    ResizeWindowPixel(ResizeCmd, WindowId),
+}
+
+
 impl fmt::Display for WorkspaceEventType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -499,37 +532,7 @@ fn is_window_match(
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum Dispatcher {
-    Exec(Vec<String>),
-    ExecWait(Vec<String>),
-    KillActiveWindow,
-    ToggleFloating(Option<WindowId>),
-    ToggleSplit,
-    ToggleOpaque,
-    MoveCursorToCorner(String),
-    MoveCursor(i64, i64),
-    ToggleFullscreen(Option<String>),
-    MoveToWorkspace(String),
-    MoveToWorkspaceSilent(String, Option<WindowId>),
-    Workspace(String),
-    CycleWindow(Option<String>),
-    MoveFocus(String),
-    SwapWindow(String),
-    FocusWindow(WindowId),
-    MoveWindow(String),
-    ToggleFakeFullscreen,
-    TogglePseudo,
-    TogglePin,
-    CenterWindow,
-    BringActiveToTop,
-    FocusUrgentOrLast,
-    FocusCurrentOrLast,
-    ForceRendererReload,
-    Exit,
-    ResizeActive(ResizeCmd),
-    ResizeWindowPixel(ResizeCmd, WindowId),
-}
+
 
 impl<'de> Deserialize<'de> for Dispatcher {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
