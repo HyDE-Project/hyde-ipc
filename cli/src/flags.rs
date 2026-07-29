@@ -125,12 +125,8 @@ pub enum Commands {
     /// Manage the hyde-ipc user service.
     Setup(SetupCommand),
 
-    /// Load a config file for global reactions.
-    Global {
-        /// Path to the config file to load.
-        #[arg(short = 'c', long)]
-        config_path: String,
-    },
+    /// Validate configs and restart the hyde-ipc user service.
+    Reload,
 
     /// Validate a config file without starting the service.
     Validate {
@@ -143,40 +139,28 @@ pub enum Commands {
     Query(QueryCommand),
 }
 
-#[derive(Parser, Debug, Clone)]
-#[command(group(
-    ArgGroup::new("action")
-        .required(true)
-        .args(["install", "uninstall", "start", "kill", "restart", "check", "watch"]),
-))]
-pub struct SetupCommand {
+#[derive(Subcommand, Debug, Clone)]
+pub enum SetupAction {
     /// Install the user service.
-    #[arg(long)]
-    pub install: bool,
-
+    Install,
     /// Uninstall the user service.
-    #[arg(long)]
-    pub uninstall: bool,
-
+    Uninstall,
     /// Start the user service.
-    #[arg(short = 's', long)]
-    pub start: bool,
-
+    Start,
     /// Stop (kill) the user service.
-    #[arg(short = 'k', long)]
-    pub kill: bool,
-
+    Kill,
     /// Restart the user service.
-    #[arg(long)]
-    pub restart: bool,
-
+    Restart,
     /// Check the status of the user service.
-    #[arg(short = 'c', long)]
-    pub check: bool,
-
+    Check,
     /// Watch the logs of the user service.
-    #[arg(short = 'w', long)]
-    pub watch: bool,
+    Watch,
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct SetupCommand {
+    #[command(subcommand)]
+    pub action: SetupAction,
 }
 
 #[derive(Parser, Debug, Clone)]

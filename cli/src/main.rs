@@ -13,166 +13,148 @@ mod react_config;
 mod reaction_handler;
 
 use clap::{CommandFactory, Parser};
-use flags::{Cli, Commands, DispatchCommand};
+use flags::{Cli, Commands, DispatchCommand, SetupAction};
 use hyde_ipc_lib::service;
-use std::{fs, process};
+use std::process;
 
-/// Main entry point for the hyde-ipc CLI.
-///
-/// Parses command-line arguments and dispatches to the appropriate subcommand handler.
 pub fn main() {
     let cli = Cli::parse();
+    cli.command.run();
+}
 
-    match cli.command {
-        Commands::Keyword { r#async, get, set, keyword, value } => {
-            if set && value.is_none() {
-                eprintln!("Error: --set requires a value");
-                print_usage_and_exit();
-            }
-            if r#async {
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap();
-                rt.block_on(keyword::async_keyword(get, set, keyword, value));
-            } else {
+impl Commands {
+    pub fn run(self) {
+        match self {
+            Commands::Keyword { r#async, get, set, keyword, value } => {
+                if set && value.is_none() {
+                    eprintln!("Error: --set requires a value");
+                    print_usage_and_exit();
+                }
+                if r#async {
+                    let rt = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .unwrap();
+                    rt.block_on(keyword::async_keyword(get, set, keyword, value));
+                    return;
+                }
+
                 keyword::sync_keyword(get, set, keyword, value);
-            }
-        },
-        Commands::Dispatch(dispatch_command) => {
-            if dispatch_command.list_dispatchers {
-                print_dispatchers_list();
-                return;
-            }
+            },
+            Commands::Dispatch(dispatch_command) => {
+                if dispatch_command.list_dispatchers {
+                    print_dispatchers_list();
+                    return;
+                }
 
-            if let Some(command) = dispatch_command.command {
-                dispatch::handle_dispatch(command, dispatch_command.r#async);
-            } else {
-                DispatchCommand::command()
-                    .print_help()
-                    .unwrap();
-            }
-        },
-        Commands::Listen { filter, max_events } => {
-            if let Err(e) = listen::listen(filter, max_events) {
-                eprintln!("Error: {e}");
-                process::exit(1);
-            }
-        },
-        Commands::React { config, inline: _, event, subtype, filter, dispatch, max_reactions } => {
-            if let Some(config_path) = config {
-                if let Err(e) = react_config::run_from_config(&config_path) {
-                    eprintln!("Error running from config: {e}");
+                match dispatch_command.command {
+                    Some(command) => {
+                        dispatch::handle_dispatch(command, dispatch_command.r#async);
+                    },
+                    None => {
+                        DispatchCommand::command()
+                            .print_help()
+                            .unwrap();
+                    },
+                }
+            },
+            Commands::Listen { filter, max_events } => {
+                if let Err(e) = listen::listen(filter, max_events) {
+                    eprintln!("Error: {e}");
                     process::exit(1);
                 }
-                return;
-            }
-            let event = event.unwrap_or_else(|| {
-                eprintln!("Error: event is required");
-                print_usage_and_exit();
-                String::new()
-            });
-            let dispatch = match dispatch {
-                Some(d) => d,
-                None => {
-                    eprintln!("Error: dispatch is required");
-                    print_usage_and_exit();
-                    unreachable!();
-                },
-            };
-            if let Err(e) = react::sync_react(event, subtype, filter, dispatch, max_reactions) {
-                eprintln!("Error: {e}");
-                process::exit(1);
-            }
-        },
-        Commands::Setup(setup_command) => {
-            let result = if setup_command.install {
-                service::install()
-            } else if setup_command.uninstall {
-                service::uninstall()
-            } else if setup_command.start {
-                service::start()
-            } else if setup_command.kill {
-                service::stop()
-            } else if setup_command.restart {
-                service::restart()
-            } else if setup_command.check {
-                service::status()
-            } else if setup_command.watch {
-                service::watch_logs()
-            } else {
-                // WARN: this should not be reached due to the ArgGroup
-                Ok(())
-            };
-
-            if let Err(e) = result {
-                eprintln!("Error: {e}");
-                process::exit(1);
-            }
-        },
-        Commands::Global { config_path } => {
-            // Validate config before installing it globally
-            if let Err(e) = react_config::ReactConfig::validate_file(&config_path) {
-                eprintln!("Config validation failed: {e}");
-                process::exit(1);
-            }
-            let dest_path = match service::get_config_path() {
-                Ok(path) => path,
-                Err(e) => {
-                    eprintln!("Error getting config path: {e}");
-                    process::exit(1);
-                },
-            };
-
-            if let Some(parent) = dest_path.parent() {
-                if !parent.exists() {
-                    if let Err(e) = fs::create_dir_all(parent) {
-                        eprintln!("Error creating config directory: {e}");
+            },
+            Commands::React {
+                config,
+                inline: _,
+                event,
+                subtype,
+                filter,
+                dispatch,
+                max_reactions,
+            } => {
+                if let Some(config_path) = config {
+                    if let Err(e) = react_config::run_from_config(&config_path) {
+                        eprintln!("Error running from config: {e}");
                         process::exit(1);
                     }
+                    return;
                 }
-            }
+                let event = event.unwrap_or_else(|| {
+                    eprintln!("Error: event is required");
+                    print_usage_and_exit();
+                    String::new()
+                });
+                let dispatch = match dispatch {
+                    Some(d) => d,
+                    None => {
+                        eprintln!("Error: dispatch is required");
+                        print_usage_and_exit();
+                        unreachable!();
+                    },
+                };
+                if let Err(e) = react::sync_react(event, subtype, filter, dispatch, max_reactions) {
+                    eprintln!("Error: {e}");
+                    process::exit(1);
+                }
+            },
+            Commands::Setup(setup_command) => {
+                let result = match setup_command.action {
+                    SetupAction::Install => service::install(),
+                    SetupAction::Uninstall => service::uninstall(),
+                    SetupAction::Start => service::start(),
+                    SetupAction::Kill => service::stop(),
+                    SetupAction::Restart => service::restart(),
+                    SetupAction::Check => service::status(),
+                    SetupAction::Watch => service::watch_logs(),
+                };
 
-            if let Err(e) = fs::copy(&config_path, &dest_path) {
-                eprintln!(
-                    "Error copying config file from {} to {}: {}",
-                    config_path,
-                    dest_path.display(),
-                    e
-                );
-                process::exit(1);
-            }
+                if let Err(e) = result {
+                    eprintln!("Error: {e}");
+                    process::exit(1);
+                } else {
+                    println!("Ok!");
+                }
+            },
+            Commands::Reload => {
+                let config_dir = match service::get_config_path() {
+                    Ok(path) => path,
+                    Err(e) => {
+                        eprintln!("Error getting config path: {e}");
+                        process::exit(1);
+                    },
+                };
 
-            println!("Config file copied to {}", dest_path.display());
-
-            // Validate the destination content as well, to be extra safe
-            if let Err(e) = react_config::ReactConfig::validate_file(&dest_path) {
-                eprintln!("Config validation failed after copy ({}): {}", dest_path.display(), e);
-                process::exit(1);
-            }
-
-            if let Err(e) = service::restart() {
-                eprintln!("Error restarting service: {e}");
-                process::exit(1);
-            }
-        },
-        Commands::Validate { config_path } => {
-            match react_config::ReactConfig::validate_file(&config_path) {
-                Ok(()) => {
-                    println!("Config validation successful: {}", config_path);
-                },
-                Err(e) => {
+                if let Err(e) = react_config::validate_path(&config_dir) {
                     eprintln!("Config validation failed: {e}");
                     process::exit(1);
-                },
-            }
-        },
-        Commands::Query(query_command) => {
-            if let Err(e) = query::run_query(query_command.command) {
-                eprintln!("Error: {e}");
-                process::exit(1);
-            }
-        },
+                }
+
+                if let Err(e) = service::restart() {
+                    eprintln!("Error: {e}");
+                    process::exit(1);
+                }
+
+                println!("Ok!");
+            },
+            Commands::Validate { config_path } => {
+                match react_config::ReactConfig::validate_file(&config_path) {
+                    Ok(()) => {
+                        println!("Config validation successful: {config_path}");
+                    },
+                    Err(e) => {
+                        eprintln!("Config validation failed: {e}");
+                        process::exit(1);
+                    },
+                }
+            },
+            Commands::Query(query_command) => {
+                if let Err(e) = query::run_query(query_command.command) {
+                    eprintln!("Error: {e}");
+                    process::exit(1);
+                }
+            },
+        }
     }
 }
 
