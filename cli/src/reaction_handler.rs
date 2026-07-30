@@ -348,7 +348,9 @@ fn run_dispatch_sequence(dispatchers: Vec<Dispatcher>, start_index: usize, total
                 return;
             },
             other => {
-                handle_dispatch(other.into(), false);
+                if let Err(e) = handle_dispatch(other.into(), false) {
+                    eprintln!("Error running dispatcher {}/{}: {e}", global_pos + 1, total);
+                }
                 local_index += 1;
             },
         }

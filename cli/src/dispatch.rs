@@ -134,31 +134,25 @@ impl TryFrom<DispatchCmd> for DispatchType<'static> {
     }
 }
 
-pub fn handle_dispatch(command: DispatchCmd, is_async: bool) {
-    match DispatchType::try_from(command) {
-        Ok(dispatch_type) => {
-            if is_async {
-                match tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                {
-                    Ok(rt) => {
-                        rt.block_on(async {
-                            if let Err(e) = Dispatch::call_async(dispatch_type).await {
-                                eprintln!("Error: {e}");
-                            }
-                        });
-                    },
-                    Err(e) => {
-                        eprintln!("Error creating async runtime: {e}");
-                    },
-                }
-            } else if let Err(e) = Dispatch::call(dispatch_type) {
-                eprintln!("Error: {e}");
-            }
-        },
-        Err(e) => {
-            eprintln!("Error: {e}");
-        },
+/// Runs one dispatch and hands every failure back to the caller.
+///
+/// Reporting the error here instead of returning it would leave the CLI exiting
+/// with a success status on a dispatch that never happened.
+pub fn handle_dispatch(command: DispatchCmd, is_async: bool) -> Result<(), String> {
+    let dispatch_type = DispatchType::try_from(command)?;
+
+    if is_async {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| format!("creating async runtime: {e}"))?;
+
+        return runtime.block_on(async {
+            Dispatch::call_async(dispatch_type)
+                .await
+                .map_err(|e| e.to_string())
+        });
     }
+
+    Dispatch::call(dispatch_type).map_err(|e| e.to_string())
 }

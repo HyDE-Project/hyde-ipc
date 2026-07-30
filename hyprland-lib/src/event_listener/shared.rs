@@ -557,7 +557,7 @@ pub enum Event {
     /// An event that emits when the floating state of a window changes,
     /// it is the equivalent of the `changefloatingmode` event
     FloatStateChanged(WindowFloatEventData),
-    /// An event that emits when the a window requests the urgent state,
+    /// An event that emits when a window requests the urgent state,
     /// it is the equivalent of the `urgent` event
     UrgentStateChanged(Address),
     /// An event that emits when the title of a window changes,
@@ -579,13 +579,13 @@ pub enum Event {
     /// An event that emits when a window is pinned or unpinned,
     /// it is the equivalent of the `pin` event
     WindowPinned(WindowPinEventData),
-    /// And event that emits when a group is toggled,
+    /// An event that emits when a group is toggled,
     /// it is the equivalent of the `togglegroup`
     GroupToggled(GroupToggledEventData),
-    /// And event that emits when a window is moved into a group,
+    /// An event that emits when a window is moved into a group,
     /// it is the equivalent of the `moveintogroup`
     WindowMovedIntoGroup(Address),
-    /// And event that emits when a window is moved out of a group,
+    /// An event that emits when a window is moved out of a group,
     /// it is the equivalent of the `moveoutofgroup`
     WindowMovedOutOfGroup(Address),
 }

@@ -30,16 +30,22 @@ impl Commands {
                     eprintln!("Error: --set requires a value");
                     print_usage_and_exit();
                 }
-                if r#async {
-                    let rt = tokio::runtime::Builder::new_current_thread()
+                let result = if r#async {
+                    match tokio::runtime::Builder::new_current_thread()
                         .enable_all()
                         .build()
-                        .unwrap();
-                    rt.block_on(keyword::async_keyword(get, set, keyword, value));
-                    return;
-                }
+                    {
+                        Ok(rt) => rt.block_on(keyword::async_keyword(get, set, keyword, value)),
+                        Err(e) => Err(format!("creating async runtime: {e}")),
+                    }
+                } else {
+                    keyword::sync_keyword(get, set, keyword, value)
+                };
 
-                keyword::sync_keyword(get, set, keyword, value);
+                if let Err(e) = result {
+                    eprintln!("Error: {e}");
+                    process::exit(1);
+                }
             },
             Commands::Dispatch(dispatch_command) => {
                 if dispatch_command.list_dispatchers {
@@ -49,7 +55,11 @@ impl Commands {
 
                 match dispatch_command.command {
                     Some(command) => {
-                        dispatch::handle_dispatch(command, dispatch_command.r#async);
+                        if let Err(e) = dispatch::handle_dispatch(command, dispatch_command.r#async)
+                        {
+                            eprintln!("Error: {e}");
+                            process::exit(1);
+                        }
                     },
                     None => {
                         DispatchCommand::command()

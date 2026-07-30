@@ -1,37 +1,44 @@
-pub fn sync_keyword(get: bool, set: bool, keyword: String, value: Option<String>) {
+/// Reads or writes one keyword and hands every failure back to the caller.
+///
+/// Reporting the error here instead of returning it would leave the CLI exiting
+/// with a success status on a keyword that was never read or written.
+pub fn sync_keyword(
+    get: bool,
+    set: bool,
+    keyword: String,
+    value: Option<String>,
+) -> Result<(), String> {
     if get {
-        match hyprland::keyword::Keyword::get(&keyword) {
-            Ok(result) => println!("{} value is {}", keyword, result.value),
-            Err(e) => eprintln!("Error getting keyword '{}': {}", keyword, e),
-        }
+        let result = hyprland::keyword::Keyword::get(&keyword)
+            .map_err(|e| format!("getting keyword '{keyword}': {e}"))?;
+        println!("{} value is {}", keyword, result.value);
     } else if set {
-        match value {
-            Some(ref val) => {
-                if let Err(e) = hyprland::keyword::Keyword::set(keyword.clone(), val.clone()) {
-                    eprintln!("Error setting keyword '{}': {}", keyword, e);
-                }
-            },
-            None => eprintln!("Error: value required for set operation"),
-        }
+        let value = value.ok_or_else(|| "value required for set operation".to_string())?;
+        hyprland::keyword::Keyword::set(keyword.clone(), value)
+            .map_err(|e| format!("setting keyword '{keyword}': {e}"))?;
     }
+
+    Ok(())
 }
 
-pub async fn async_keyword(get: bool, set: bool, keyword: String, value: Option<String>) {
+/// Asynchronous counterpart of [`sync_keyword`], with the same error contract.
+pub async fn async_keyword(
+    get: bool,
+    set: bool,
+    keyword: String,
+    value: Option<String>,
+) -> Result<(), String> {
     if get {
-        match hyprland::keyword::Keyword::get_async(&keyword).await {
-            Ok(result) => println!("{} value is {}", keyword, result.value),
-            Err(e) => eprintln!("Error getting keyword '{}': {}", keyword, e),
-        }
+        let result = hyprland::keyword::Keyword::get_async(&keyword)
+            .await
+            .map_err(|e| format!("getting keyword '{keyword}': {e}"))?;
+        println!("{} value is {}", keyword, result.value);
     } else if set {
-        match value {
-            Some(ref val) => {
-                if let Err(e) =
-                    hyprland::keyword::Keyword::set_async(keyword.clone(), val.clone()).await
-                {
-                    eprintln!("Error setting keyword '{}': {}", keyword, e);
-                }
-            },
-            None => eprintln!("Error: value required for set operation"),
-        }
+        let value = value.ok_or_else(|| "value required for set operation".to_string())?;
+        hyprland::keyword::Keyword::set_async(keyword.clone(), value)
+            .await
+            .map_err(|e| format!("setting keyword '{keyword}': {e}"))?;
     }
+
+    Ok(())
 }
