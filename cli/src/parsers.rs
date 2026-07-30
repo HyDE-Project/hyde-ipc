@@ -1,3 +1,4 @@
+use crate::flags::WindowId;
 use hyprland::dispatch::{
     Corner, CycleDirection, Direction, FullscreenType, MonitorIdentifier, WindowIdentifier,
     WindowMove, WorkspaceIdentifierWithSpecial,
@@ -6,51 +7,77 @@ use hyprland::shared::Address;
 use phf::phf_map;
 use std::str::FromStr;
 
-/// Parses window identifiers from string format.
+/// A window filter in owned form.
 ///
-/// # Memory Leaks
-///
-/// Uses `Box::leak()` to satisfy hyprland API's 'static lifetime requirement.
-/// This is acceptable in CLI context where process lifetime is short.
-/// See dispatch.rs for detailed explanation.
+/// [`WindowIdentifier`] borrows its patterns, so a value that has to outlive the
+/// string it was parsed from — a reaction filter held for as long as the daemon
+/// runs — cannot store one directly. Owning the pattern here replaces what used
+/// to be a leaked `Box`.
 #[derive(Debug, Clone)]
-pub struct ParsedWindowIdentifier(pub WindowIdentifier<'static>);
-impl FromStr for ParsedWindowIdentifier {
+pub enum WindowFilter {
+    /// A pattern matched against the window class
+    Class(String),
+    /// A pattern matched against the window title
+    Title(String),
+    /// A filter the event data cannot be compared against.
+    ///
+    /// Window events carry a class and a title, so a `pid:` or `address:` filter
+    /// never matches. Such a filter is kept rather than rejected so existing
+    /// configurations still load, and the caller is expected to report it.
+    Unmatchable(String),
+}
+
+/// Borrows the first field set on a window argument as a hyprland identifier.
+///
+/// Returns `None` when no field was given. The identifier borrows from the
+/// argument, so it stays valid for as long as the parsed command does and no
+/// pattern has to be leaked to reach a `'static` lifetime.
+///
+/// This lives here rather than on [`WindowId`] because `flags.rs` is also
+/// compiled by the build script, which does not link the hyprland crate.
+pub fn window_identifier(window: &WindowId) -> Option<WindowIdentifier<'_>> {
+    if let Some(class) = &window.class {
+        Some(WindowIdentifier::ClassRegularExpression(class))
+    } else if let Some(title) = &window.title {
+        Some(WindowIdentifier::Title(title))
+    } else if let Some(pid) = window.pid {
+        Some(WindowIdentifier::ProcessId(pid))
+    } else {
+        window
+            .address
+            .as_ref()
+            .map(|address| WindowIdentifier::Address(Address::new(address)))
+    }
+}
+
+impl FromStr for WindowFilter {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some(class) = s.strip_prefix("class:") {
-            let class_static = Box::leak(class.to_string().into_boxed_str());
-            Ok(Self(WindowIdentifier::ClassRegularExpression(class_static)))
+            Ok(Self::Class(class.to_string()))
         } else if let Some(title) = s.strip_prefix("title:") {
-            let title_static = Box::leak(title.to_string().into_boxed_str());
-            Ok(Self(WindowIdentifier::Title(title_static)))
-        } else if let Some(pid_str) = s.strip_prefix("pid:") {
-            let pid = pid_str
-                .parse::<u32>()
-                .map_err(|_| "Invalid PID")?;
-            Ok(Self(WindowIdentifier::ProcessId(pid)))
-        } else if let Some(addr) = s.strip_prefix("address:") {
-            Ok(Self(WindowIdentifier::Address(Address::new(addr))))
+            Ok(Self::Title(title.to_string()))
+        } else if let Some(pid) = s.strip_prefix("pid:") {
+            pid.parse::<u32>()
+                .map_err(|_| "Invalid PID".to_string())?;
+            Ok(Self::Unmatchable(s.to_string()))
+        } else if s.starts_with("address:") {
+            Ok(Self::Unmatchable(s.to_string()))
         } else {
-            let class_static = Box::leak(s.to_string().into_boxed_str());
-            Ok(Self(WindowIdentifier::ClassRegularExpression(class_static)))
+            Ok(Self::Class(s.to_string()))
         }
     }
 }
 
 /// Parses workspace identifiers from string format.
 ///
-/// # Memory Leaks
-///
-/// Uses `Box::leak()` for workspace names to satisfy hyprland API constraints.
-/// Acceptable in CLI context. See dispatch.rs for details.
+/// The parsed value borrows any workspace name from the input, so the caller
+/// keeps that string alive for as long as the identifier is in use.
 #[derive(Debug, Clone)]
-pub struct ParsedWorkspaceIdentifier(pub WorkspaceIdentifierWithSpecial<'static>);
-impl FromStr for ParsedWorkspaceIdentifier {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+pub struct ParsedWorkspaceIdentifier<'a>(pub WorkspaceIdentifierWithSpecial<'a>);
+impl<'a> ParsedWorkspaceIdentifier<'a> {
+    pub fn parse(s: &'a str) -> Result<Self, String> {
         if let Ok(id) = s.parse::<i32>() {
             if id == 0 {
                 Ok(Self(WorkspaceIdentifierWithSpecial::Special(None)))
@@ -72,8 +99,7 @@ impl FromStr for ParsedWorkspaceIdentifier {
         } else if s == "empty" {
             Ok(Self(WorkspaceIdentifierWithSpecial::Empty))
         } else if let Some(name) = s.strip_prefix("name:") {
-            let name_static = Box::leak(name.to_string().into_boxed_str());
-            Ok(Self(WorkspaceIdentifierWithSpecial::Name(name_static)))
+            Ok(Self(WorkspaceIdentifierWithSpecial::Name(name)))
         } else {
             Err(format!("Unknown workspace identifier: {s}"))
         }
@@ -103,23 +129,14 @@ impl FromStr for ParsedDirection {
 
 /// Parses window move targets from string format.
 ///
-/// # Memory Leaks
-///
-/// Uses `Box::leak()` for monitor names to satisfy hyprland API constraints.
-/// Acceptable in CLI context. See dispatch.rs for details.
+/// The parsed value borrows any monitor name from the input, so the caller keeps
+/// that string alive for as long as the target is in use.
 #[derive(Debug, Clone)]
-pub struct ParsedWindowMove(pub WindowMove<'static>);
-impl FromStr for ParsedWindowMove {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+pub struct ParsedWindowMove<'a>(pub WindowMove<'a>);
+impl<'a> ParsedWindowMove<'a> {
+    pub fn parse(s: &'a str) -> Result<Self, String> {
         if let Some(monitor_name) = s.strip_prefix("mon:") {
-            let monitor_name_static = Box::leak(
-                monitor_name
-                    .to_string()
-                    .into_boxed_str(),
-            );
-            Ok(Self(WindowMove::Monitor(MonitorIdentifier::Name(monitor_name_static))))
+            Ok(Self(WindowMove::Monitor(MonitorIdentifier::Name(monitor_name))))
         } else if let Ok(monitor_id) = s.parse::<i128>() {
             Ok(Self(WindowMove::Monitor(MonitorIdentifier::Id(monitor_id))))
         } else if s.to_lowercase() == "current" {

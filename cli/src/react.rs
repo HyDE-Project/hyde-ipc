@@ -1,5 +1,5 @@
 use crate::flags::Dispatch as DispatchCmd;
-use crate::parsers::ParsedWindowIdentifier;
+use crate::parsers::WindowFilter;
 use crate::reaction_handler::{EventType, Reaction, ReactionManager};
 use hyprland::shared::HyprError;
 use std::str::FromStr;
@@ -24,10 +24,9 @@ pub fn sync_react(
 
     let window_filter = filter
         .as_deref()
-        .map(ParsedWindowIdentifier::from_str)
+        .map(WindowFilter::from_str)
         .transpose()
-        .map_err(HyprError::Other)?
-        .map(|p| p.0);
+        .map_err(HyprError::Other)?;
 
     let reaction = Reaction {
         event_type,
