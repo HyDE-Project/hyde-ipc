@@ -1,7 +1,6 @@
 use crate::dispatch::handle_dispatch;
 use crate::flags::{Dispatch, ResizeCmd, WindowId};
-use crate::parsers::ParsedWindowIdentifier;
-use hyprland::dispatch::WindowIdentifier;
+use crate::parsers::WindowFilter;
 use hyprland::event_listener::EventListener;
 use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
@@ -252,9 +251,9 @@ pub struct Reaction {
     pub dispatchers: Vec<Dispatcher>,
     #[serde(
         default,
-        deserialize_with = "deserialize_window_identifier"
+        deserialize_with = "deserialize_window_filter"
     )]
-    pub window_filter: Option<WindowIdentifier<'static>>,
+    pub window_filter: Option<WindowFilter>,
     #[serde(default)]
     pub max_count: Option<usize>,
     pub name: Option<String>,
@@ -303,19 +302,13 @@ impl Reaction {
     }
 }
 
-pub fn deserialize_window_identifier<'de, D>(
-    deserializer: D,
-) -> Result<Option<WindowIdentifier<'static>>, D::Error>
+pub fn deserialize_window_filter<'de, D>(deserializer: D) -> Result<Option<WindowFilter>, D::Error>
 where
     D: Deserializer<'de>,
 {
     let s: Option<String> = Option::deserialize(deserializer)?;
-    s.map(|s| {
-        ParsedWindowIdentifier::from_str(&s)
-            .map(|p| p.0)
-            .map_err(de::Error::custom)
-    })
-    .transpose()
+    s.map(|s| WindowFilter::from_str(&s).map_err(de::Error::custom))
+        .transpose()
 }
 
 fn run_dispatch_sequence(dispatchers: Vec<Dispatcher>, start_index: usize, total: usize) {
@@ -348,7 +341,9 @@ fn run_dispatch_sequence(dispatchers: Vec<Dispatcher>, start_index: usize, total
                 return;
             },
             other => {
-                handle_dispatch(other.into(), false);
+                if let Err(e) = handle_dispatch(other.into(), false) {
+                    eprintln!("Error running dispatcher {}/{}: {e}", global_pos + 1, total);
+                }
                 local_index += 1;
             },
         }
@@ -365,6 +360,13 @@ impl ReactionManager {
     }
 
     pub fn add_reaction(&mut self, reaction: Reaction) {
+        if let Some(WindowFilter::Unmatchable(filter)) = &reaction.window_filter {
+            eprintln!(
+                "Warning: window filter '{filter}' never matches, window events only carry a \
+                 class and a title"
+            );
+        }
+
         self.reactions.push(Arc::new(reaction));
     }
 
@@ -518,15 +520,11 @@ impl ReactionManager {
     }
 }
 
-fn is_window_match(
-    filter: Option<&WindowIdentifier>,
-    window_class: &str,
-    window_title: &str,
-) -> bool {
+fn is_window_match(filter: Option<&WindowFilter>, window_class: &str, window_title: &str) -> bool {
     match filter {
-        Some(WindowIdentifier::ClassRegularExpression(pattern)) => window_class.contains(pattern),
-        Some(WindowIdentifier::Title(pattern)) => window_title.contains(pattern),
-        Some(_) => false,
+        Some(WindowFilter::Class(pattern)) => window_class.contains(pattern),
+        Some(WindowFilter::Title(pattern)) => window_title.contains(pattern),
+        Some(WindowFilter::Unmatchable(_)) => false,
         None => true,
     }
 }

@@ -1,8 +1,7 @@
+use crate::dispatch::validate_dispatch;
 use crate::flags;
 use crate::reaction_handler::{Reaction, ReactionManager};
-use hyprland::dispatch::DispatchType;
 use serde::Deserialize;
-use std::convert::TryFrom;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
@@ -42,7 +41,7 @@ impl ReactConfig {
                 let cli_dispatch: flags::Dispatch = dispatcher.clone().into();
 
                 // convert into hypr dispatch type (invalid fails here)
-                if let Err(e) = DispatchType::try_from(cli_dispatch) {
+                if let Err(e) = validate_dispatch(&cli_dispatch) {
                     return Err(format!(
                         "Invalid dispatcher at reaction {} (#{}): {}",
                         ri,

@@ -84,6 +84,35 @@ impl EventListener {
     /// listener.start_listener();
     /// ```
     pub fn start_listener(&mut self) -> crate::Result<()> {
+        self.start_listener_while(|| true)
+    }
+
+    /// This method starts the event listener (blocking) and returns once
+    /// `should_continue` reports that the listener is no longer wanted
+    ///
+    /// The predicate is polled after every handled event, so a handler that has
+    /// seen everything it needs can ask the loop to wind down. The listener then
+    /// returns normally, closing the socket and running every destructor, which
+    /// terminating the process from inside a handler would skip.
+    ///
+    /// ```rust, no_run
+    /// use hyprland::event_listener::EventListener;
+    /// use std::sync::Arc;
+    /// use std::sync::atomic::{AtomicBool, Ordering};
+    ///
+    /// let done = Arc::new(AtomicBool::new(false));
+    /// let handler_done = Arc::clone(&done);
+    /// let mut listener = EventListener::new();
+    /// listener.add_workspace_changed_handler(move |id| {
+    ///     println!("changed workspace to {id:?}");
+    ///     handler_done.store(true, Ordering::SeqCst);
+    /// });
+    /// listener.start_listener_while(|| !done.load(Ordering::SeqCst));
+    /// ```
+    pub fn start_listener_while<F>(&mut self, should_continue: F) -> crate::Result<()>
+    where
+        F: Fn() -> bool,
+    {
         use io::prelude::*;
         use std::os::unix::net::UnixStream;
 
@@ -104,6 +133,9 @@ impl EventListener {
 
             for event in parsed {
                 self.event_primer(event, &mut active_windows)?;
+                if !should_continue() {
+                    return Ok(());
+                }
             }
         }
 

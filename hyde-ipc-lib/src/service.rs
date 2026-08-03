@@ -59,7 +59,7 @@ fn get_manager() -> Result<Box<dyn ServiceManager>> {
         <dyn ServiceManager>::native().map_err(|e| ServiceError::Manager(e.to_string()))?;
     manager
         .set_level(ServiceLevel::User)
-        .expect("Failed to install service");
+        .map_err(|e| ServiceError::UserLevel(e.to_string()))?;
 
     Ok(manager)
 }
@@ -68,8 +68,6 @@ fn get_label() -> ServiceLabel {
     ServiceLabel { qualifier: None, organization: None, application: String::from("hyde-ipc") }
 }
 
-// FIX: redesign ?
-//
 pub fn get_config_path() -> Result<PathBuf> {
     let config_dir = dirs::config_dir()
         .ok_or_else(|| ServiceError::Config("Could not get user's config directory".to_string()))?;
@@ -82,15 +80,13 @@ pub fn install() -> Result<()> {
     let label = get_label();
     let manager = get_manager()?;
 
-    // FIX: redesign needed for sure
     let which_output = Command::new("which")
         .arg("hyde-ipc")
         .output()
-        .expect("Failed to detect hyde-ipc binary.");
+        .map_err(|e| ServiceError::Install(format!("Failed to detect hyde-ipc binary: {}", e)))?;
 
     if !which_output.status.success() {
-        eprintln!("Could not find hyde-ipc binary in PATH");
-        std::process::exit(1);
+        return Err(ServiceError::Install("Could not find hyde-ipc binary in PATH".to_string()));
     }
 
     let hyde_ipc_path = String::from_utf8_lossy(&which_output.stdout)
